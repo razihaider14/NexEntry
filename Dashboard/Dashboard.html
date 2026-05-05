@@ -1,0 +1,1506 @@
+<style>
+    :root {
+        --bg: #0a0e1a;
+        --surface: #111827;
+        --surface2: #1a2235;
+        --border: #1e2d45;
+        --accent: #3b82f6;
+        --accent2: #06b6d4;
+        --green: #10b981;
+        --red: #ef4444;
+        --yellow: #f59e0b;
+        --text: #e2e8f0;
+        --text2: #94a3b8;
+        --text3: #64748b;
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    #rfid-root {
+        font-family: 'Segoe UI', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        padding: 0;
+    }
+
+    /* ── Login Overlay ─────────────────────────────── */
+    #login-overlay {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    #login-overlay.hidden {
+        display: none;
+    }
+
+    .login-box {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 48px 40px;
+        width: 360px;
+        text-align: center;
+    }
+
+    .login-box h1 {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 6px;
+        color: var(--text);
+    }
+
+    .login-box p {
+        color: var(--text2);
+        font-size: 13px;
+        margin-bottom: 28px;
+    }
+
+    .login-box input {
+        width: 100%;
+        padding: 11px 14px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 14px;
+        margin-bottom: 12px;
+        outline: none;
+    }
+
+    .login-box input:focus {
+        border-color: var(--accent);
+    }
+
+    .login-box button {
+        width: 100%;
+        padding: 11px;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 4px;
+    }
+
+    .login-box button:hover {
+        background: #2563eb;
+    }
+
+    .login-error {
+        color: var(--red);
+        font-size: 12px;
+        margin-top: 8px;
+    }
+
+    /* ── Header ────────────────────────────────────── */
+    .header {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .header-left h1 {
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .header-left span {
+        font-size: 12px;
+        color: var(--text2);
+    }
+
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .status-pill {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 5px 12px;
+        font-size: 12px;
+    }
+
+    .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text3);
+    }
+
+    .dot.green {
+        background: var(--green);
+        box-shadow: 0 0 6px var(--green);
+    }
+
+    .dot.red {
+        background: var(--red);
+        box-shadow: 0 0 6px var(--red);
+    }
+
+    .dot.yellow {
+        background: var(--yellow);
+    }
+
+    /* ── Nav Tabs ───────────────────────────────────── */
+    .nav {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 0;
+        padding: 0 24px;
+    }
+
+    .nav-btn {
+        padding: 12px 20px;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--text2);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .nav-btn:hover {
+        color: var(--text);
+    }
+
+    .nav-btn.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+    }
+
+    /* ── Layout ─────────────────────────────────────── */
+    .page {
+        display: none;
+        padding: 20px 24px;
+    }
+
+    .page.active {
+        display: block;
+    }
+
+    .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+    }
+
+    /* ── Cards ──────────────────────────────────────── */
+    .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .card-title {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text2);
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    /* ── Stat tiles ─────────────────────────────────── */
+    .stat-val {
+        font-size: 36px;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        color: var(--text2);
+        margin-top: 6px;
+    }
+
+    /* ── Tables ─────────────────────────────────────── */
+    .tbl-wrap {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    th {
+        text-align: left;
+        padding: 8px 12px;
+        color: var(--text3);
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        border-bottom: 1px solid var(--border);
+    }
+
+    td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+
+    tr:hover td {
+        background: var(--surface2);
+    }
+
+    /* ── Badges ─────────────────────────────────────── */
+    .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .badge-green {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--green);
+    }
+
+    .badge-red {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--red);
+    }
+
+    .badge-yellow {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--yellow);
+    }
+
+    .badge-blue {
+        background: rgba(59, 130, 246, 0.15);
+        color: var(--accent);
+    }
+
+    .badge-gray {
+        background: rgba(100, 116, 139, 0.15);
+        color: var(--text3);
+    }
+
+    /* ── Buttons ────────────────────────────────────── */
+    .btn {
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: none;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .btn:hover {
+        opacity: 0.85;
+    }
+
+    .btn-primary {
+        background: var(--accent);
+        color: #fff;
+    }
+
+    .btn-success {
+        background: var(--green);
+        color: #fff;
+    }
+
+    .btn-danger {
+        background: var(--red);
+        color: #fff;
+    }
+
+    .btn-warning {
+        background: var(--yellow);
+        color: #fff;
+    }
+
+    .btn-ghost {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1px solid var(--border);
+    }
+
+    /* ── Forms ──────────────────────────────────────── */
+    .form-row {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        flex: 1;
+    }
+
+    .form-group label {
+        font-size: 11px;
+        color: var(--text2);
+        font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group select {
+        padding: 9px 12px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 13px;
+        outline: none;
+        min-width: 140px;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+        border-color: var(--accent);
+    }
+
+    /* ── Demo Mode Bar ──────────────────────────────── */
+    .demo-bar {
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        border-radius: 8px;
+        padding: 10px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .demo-bar span {
+        color: var(--yellow);
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    /* ── Alert banner ───────────────────────────────── */
+    .alert-banner {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 8px;
+        padding: 10px 16px;
+        color: var(--red);
+        font-size: 13px;
+        margin-bottom: 12px;
+        display: none;
+    }
+
+    .alert-banner.show {
+        display: block;
+    }
+
+    /* ── Admin lock overlay ─────────────────────────── */
+    #admin-lock {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 14, 26, 0.92);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        border-radius: 12px;
+    }
+
+    #admin-lock.hidden {
+        display: none;
+    }
+
+    .admin-lock-box {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 32px;
+        width: 300px;
+        text-align: center;
+    }
+
+    .admin-lock-box h3 {
+        margin-bottom: 8px;
+    }
+
+    .admin-lock-box p {
+        color: var(--text2);
+        font-size: 12px;
+        margin-bottom: 20px;
+    }
+
+    /* ── Door status ────────────────────────────────── */
+    .door-status {
+        font-size: 28px;
+        font-weight: 700;
+        margin: 8px 0;
+    }
+
+    /* ── Analytics bars ─────────────────────────────── */
+    .bar-wrap {
+        margin-bottom: 12px;
+    }
+
+    .bar-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--text2);
+        margin-bottom: 4px;
+    }
+
+    .bar-track {
+        background: var(--surface2);
+        border-radius: 4px;
+        height: 8px;
+        overflow: hidden;
+    }
+
+    .bar-fill {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 4px;
+        transition: width 0.6s ease;
+    }
+
+    .bar-fill.late {
+        background: var(--yellow);
+    }
+
+    /* ── Scrollable feed ────────────────────────────── */
+    .feed-wrap {
+        max-height: 320px;
+        overflow-y: auto;
+    }
+
+    .feed-wrap::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .feed-wrap::-webkit-scrollbar-track {
+        background: var(--surface2);
+    }
+
+    .feed-wrap::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 2px;
+    }
+</style>
+
+<div id="rfid-root">
+
+    <!-- ── Login Overlay ──────────────────────────── -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h1>🔒 NexEntry</h1>
+            <p>Access Control & Presence Management</p>
+            <input type="text"     id="login-user" placeholder="Username" />
+            <input type="password" id="login-pass" placeholder="Password" />
+            <button onclick="doLogin()">Sign In</button>
+            <div class="login-error" id="login-err"></div>
+        </div>
+    </div>
+
+    <!-- ── Header ─────────────────────────────────── -->
+    <div class="header">
+        <div class="header-left">
+            <h1>⚡ NexEntry</h1>
+            <span id="demo-indicator"></span>
+        </div>
+        <div class="header-right">
+            <div class="status-pill">
+                <div class="dot" id="door-dot"></div>
+                <span id="door-label">Door: --</span>
+            </div>
+            <div class="status-pill">
+                <div class="dot green" id="esp-dot"></div>
+                <span id="esp-label">ESP32: Online</span>
+            </div>
+            <div class="status-pill">
+                <span id="esp-time">--:--:--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Nav ────────────────────────────────────── -->
+    <div class="nav">
+        <button class="nav-btn active" onclick="showPage('live')">Live Feed</button>
+        <button class="nav-btn" onclick="showPage('attendance')">Attendance</button>
+        <button class="nav-btn" onclick="showPage('analytics')">Analytics</button>
+        <button class="nav-btn" onclick="showPage('admin')">Admin</button>
+    </div>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- PAGE: Live Feed                              -->
+    <!-- ════════════════════════════════════════════ -->
+    <div class="page active" id="page-live">
+
+        <div id="demo-bar-live" class="demo-bar" style="display:none">
+            <span>⏱ DEMO MODE — Time is simulated</span>
+            <span id="demo-time-display">--:--</span>
+        </div>
+
+        <div id="alert-banner" class="alert-banner"></div>
+
+        <div class="grid-3" style="margin-bottom:16px">
+            <div class="card">
+                <div class="card-title">Total Today</div>
+                <div class="stat-val" id="stat-today">0</div>
+                <div class="stat-label">tap events</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Currently Inside</div>
+                <div class="stat-val" id="stat-inside">0</div>
+                <div class="stat-label">people</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Late Arrivals Today</div>
+                <div class="stat-val" id="stat-late">0</div>
+                <div class="stat-label">people</div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">
+                    Live Tap Feed
+                    <span style="color:var(--text3);font-size:11px">last 50 events</span>
+                </div>
+                <div class="feed-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Name</th>
+                                <th>Action</th>
+                                <th>Status</th>
+                                <th>Flag</th>
+                            </tr>
+                        </thead>
+                        <tbody id="feed-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div>
+                <div class="card" style="margin-bottom:16px">
+                    <div class="card-title">Door Control</div>
+                    <div class="door-status" id="door-status-text">--</div>
+                    <div style="margin-top:14px;display:flex;gap:10px">
+                       <button class="btn btn-success" id="btn-unlock">🔓 Unlock</button>
+		       <button class="btn btn-danger"  id="btn-lock">🔒 Lock</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Alerts</div>
+                    <div class="feed-wrap" style="max-height:180px">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Type</th>
+                                    <th>UID</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alert-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- PAGE: Attendance                             -->
+    <!-- ════════════════════════════════════════════ -->
+    <div class="page" id="page-attendance">
+        <div class="card">
+            <div class="card-title">
+                Attendance Log
+                <div style="display:flex;gap:8px">
+                    <input type="date" id="filter-date"
+            style="background:var(--surface2);border:1px solid var(--border);
+                   border-radius:6px;color:var(--text);padding:4px 8px;font-size:12px"
+            onchange="loadAttendance()" />
+                    <button class="btn btn-ghost" onclick="exportCSV()">⬇ Export CSV</button>
+                </div>
+            </div>
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Date</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Duration</th>
+                            <th>Status</th>
+                            <th>Late</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendance-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- PAGE: Analytics                              -->
+    <!-- ════════════════════════════════════════════ -->
+    <div class="page" id="page-analytics">
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">Weekly Attendance (last 7 days)</div>
+                <div id="weekly-bars"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Late Arrivals (last 7 days)</div>
+                <div id="late-bars"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- PAGE: Admin                                  -->
+    <!-- ════════════════════════════════════════════ -->
+    <div class="page" id="page-admin" style="position:relative">
+
+        <!-- Admin lock overlay -->
+        <div id="admin-lock">
+            <div class="admin-lock-box">
+                <h3>🔐 Admin Access</h3>
+                <p>Enter admin password to manage cards and settings</p>
+                <input type="password" id="admin-pass-input"
+               placeholder="Admin password"
+               style="width:100%;padding:9px 12px;background:var(--surface2);
+                      border:1px solid var(--border);border-radius:8px;
+                      color:var(--text);font-size:13px;outline:none;margin-bottom:10px" />
+                <button class="btn btn-primary" style="width:100%" onclick="unlockAdmin()">
+          Unlock
+        </button>
+                <div class="login-error" id="admin-err"></div>
+            </div>
+        </div>
+
+        <!-- Admin content (visible after unlock) -->
+        <div class="grid-2" style="margin-bottom:16px">
+
+            <!-- Demo Mode -->
+            <div class="card">
+                <div class="card-title">Demo Mode</div>
+                <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+                    <button class="btn btn-warning" onclick="toggleDemo()">
+            Toggle Demo Mode
+          </button>
+                    <span id="demo-status-label"
+                style="font-size:12px;color:var(--text2)">OFF</span>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-ghost" onclick="addDemoOffset(3600)">+1 Hour</button>
+                    <button class="btn btn-ghost" onclick="addDemoOffset(7200)">+2 Hours</button>
+                    <button class="btn btn-ghost" onclick="addDemoOffset(86400)">+1 Day</button>
+                    <button class="btn btn-ghost" onclick="addDemoOffset(-3600)">-1 Hour</button>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="card">
+                <div class="card-title" style="color:var(--red)">Danger Zone</div>
+                <p style="font-size:12px;color:var(--text2);margin-bottom:14px">
+                    Clear all attendance history and reset everyone to OUT.
+                    This cannot be undone.
+                </p>
+                <button class="btn btn-danger" onclick="clearHistory()">
+                     🗑 Clear All History
+                </button>
+                <button class="btn btn-warning" onclick="clearDemoRecords()" style="margin-top:10px">
+                     ⏱ Clear Demo Records
+                </button>
+            </div>
+        </div>
+
+        <!-- Card Management -->
+        <div class="card" style="position:relative">
+            <div class="card-title">Card Management</div>
+
+            <!-- Enroll section -->
+            <div style="background:var(--surface2);border-radius:8px;
+                  padding:16px;margin-bottom:16px;border:1px solid var(--border)">
+                <div style="font-size:12px;font-weight:600;
+                    color:var(--text2);margin-bottom:12px">
+                    ENROLL NEW CARD
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Scanned UID</label>
+                        <input type="text" id="enroll-uid" placeholder="Tap card after starting..." readonly />
+                    </div>
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="enroll-name" placeholder="Full name" />
+                    </div>
+                    <div class="form-group" style="max-width:130px">
+                        <label>Access</label>
+                        <select id="enroll-access">
+              <option value="1">Whitelisted</option>
+              <option value="0">Blacklisted</option>
+            </select>
+                    </div>
+                    <div class="form-group" style="max-width:180px">
+                        <label>Expiry (blank = permanent)</label>
+                        <input type="datetime-local" id="enroll-expiry" />
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px">
+                    <button class="btn btn-primary"  onclick="startEnroll()">📡 Start Scan</button>
+                    <button class="btn btn-success"  onclick="saveEnrolled()">💾 Save Card</button>
+                    <button class="btn btn-ghost"    onclick="stopEnroll()">✕ Stop</button>
+                </div>
+                <div id="enroll-status" style="font-size:12px;color:var(--text2);margin-top:8px"></div>
+            </div>
+
+            <!-- Registry table -->
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>UID</th>
+                            <th>Name</th>
+                            <th>Access</th>
+                            <th>Expiry</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cards-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div><!-- end rfid-root -->
+
+<script>
+console.log('Dashboard script loaded');
+// ════════════════════════════════════════════════
+//  Config
+// ════════════════════════════════════════════════
+if (window._rfidDashboardActive) window._rfidDashboardActive();
+var _killed = false;
+window._rfidDashboardActive = function() { _killed = true; };
+var LOGIN_USER          = 'operator';
+var LOGIN_PASS          = '12345';
+var ADMIN_PASS          = '54321';
+var API                 = window.location.protocol + '//' + window.location.hostname + ':1880';
+var demoMode            = false;
+var demoOffsetSeconds   = 0;
+var _statsDebounceTimer = null;
+var _statsFetching = false;
+var demoBaseTime        = 0;
+var adminUnlocked       = false;
+
+// ════════════════════════════════════════════════
+//  Login
+// ════════════════════════════════════════════════
+function doLogin() {
+  var u = document.getElementById('login-user').value.trim();
+  var p = document.getElementById('login-pass').value.trim();
+  if (u === LOGIN_USER && p === LOGIN_PASS) {
+    document.getElementById('login-overlay').classList.add('hidden');
+    init();
+  } else {
+    document.getElementById('login-err').textContent = 'Invalid credentials';
+  }
+}
+
+document.getElementById('login-pass').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ════════════════════════════════════════════════
+//  Admin unlock
+// ════════════════════════════════════════════════
+function unlockAdmin() {
+  var p = document.getElementById('admin-pass-input').value;
+  if (p === ADMIN_PASS) {
+    adminUnlocked = true;
+    document.getElementById('admin-lock').classList.add('hidden');
+    loadCards();
+  } else {
+    document.getElementById('admin-err').textContent = 'Wrong password';
+  }
+}
+
+// ════════════════════════════════════════════════
+//  Navigation
+// ════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(function(p) {
+    p.classList.remove('active');
+  });
+  document.querySelectorAll('.nav-btn').forEach(function(b) {
+    b.classList.remove('active');
+  });
+  document.getElementById('page-' + name).classList.add('active');
+  event.target.classList.add('active');
+
+  if (name === 'attendance') loadAttendance();
+  if (name === 'analytics')  loadAnalytics();
+  if (name === 'admin' && adminUnlocked) loadCards();
+}
+
+// ════════════════════════════════════════════════
+//  Init — called after login
+// ════════════════════════════════════════════════
+function init() {
+    // Clear any intervals from previous instances
+    var highestId = setInterval(function(){}, 9999);
+    for (var i = 0; i < highestId; i++) {
+        clearInterval(i);
+    }
+    // Initialize door status to locked on page load
+    updateDoorStatus('LOCKED');
+
+    debouncedStats();
+    
+    setInterval(function() {
+        if (!_killed) debouncedStats();
+    }, 5000);
+
+    setInterval(function() {
+        if (_killed) return;
+        if (demoMode) {
+            updateDemoTimeDisplay();
+        } else {
+            var now = new Date();
+            document.getElementById('esp-time').textContent =
+                now.toLocaleTimeString('en-GB') + ' ' +
+                now.toLocaleDateString('en-GB');
+        }
+    }, 1000);
+}
+
+// ════════════════════════════════════════════════
+//  Node-RED message handler
+// ════════════════════════════════════════════════
+scope.$watch('msg', function(msg) {
+  if (!msg || !msg.payload) return;
+  var p = msg.payload;
+
+  // Live feed update (array from update-feed node)
+  if (p.alertList) {
+    renderAlerts(p.alertList);
+    return;
+  }
+
+  if (Array.isArray(p)) {
+    renderFeed(p);
+    return;
+  }
+
+  // Alert list update
+  if (p.type && (p.type === 'UNKNOWN_CARD' || p.type === 'DOOR_HELD_OPEN')) {
+    // alerts array comes through separately — handled by alert node
+  }
+
+  // Alert array
+  if (Array.isArray(p) && p[0] && p[0].type) {
+    renderAlerts(p);
+    return;
+  }
+
+  // Door event
+  if (p.event) {
+    updateDoorStatus(p.event);
+    return;
+  }
+
+  // ESP32 status heartbeat
+  if (p.uptime !== undefined) {
+    if (!demoMode) {
+      var now = new Date();
+      document.getElementById('esp-time').textContent = 
+          now.toLocaleTimeString('en-GB') + ' ' + 
+          now.toLocaleDateString('en-GB');
+    }
+    document.getElementById('esp-dot').className = 'dot green';
+    document.getElementById('esp-label').textContent = 'ESP32: Online';
+    if (p.demo) {
+      demoMode = true;
+      updateDemoUI();
+    }
+    return;
+  }
+
+  // Enroll scanned
+  if (p.uid && Object.keys(p).length === 1) {
+    document.getElementById('enroll-uid').value = p.uid;
+    document.getElementById('enroll-status').textContent =
+      '✓ Card scanned: ' + p.uid + ' — fill in name and click Save';
+    return;
+  }
+
+  // Tap event (single)
+  if (p.action) {
+    showTapAlert(p);
+  }
+});
+
+// ════════════════════════════════════════════════
+//  Feed rendering
+// ════════════════════════════════════════════════
+function renderFeed(feed) {
+  var tbody = document.getElementById('feed-body');
+  tbody.innerHTML = '';
+  feed.forEach(function(row) {
+    var tr = document.createElement('tr');
+    var actionBadge = row.action === 'CHECK_IN'
+      ? '<span class="badge badge-green">IN</span>'
+      : '<span class="badge badge-blue">OUT</span>';
+    var accessBadge = row.access === 'GRANTED'
+      ? '<span class="badge badge-green">Granted</span>'
+      : '<span class="badge badge-red">Denied</span>';
+    var lateBadge = row.late
+      ? '<span class="badge badge-yellow">⚠ Late</span>' : '';
+    var demoBadge = row.demo
+      ? '<span class="badge badge-gray">DEMO</span>' : '';
+
+    tr.innerHTML =
+      '<td>' + row.time + '</td>' +
+      '<td><strong>' + row.name + '</strong></td>' +
+      '<td>' + actionBadge + '</td>' +
+      '<td>' + accessBadge + '</td>' +
+      '<td>' + lateBadge + demoBadge + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+function renderAlerts(alerts) {
+  var tbody = document.getElementById('alert-body');
+  tbody.innerHTML = '';
+  alerts.forEach(function(a) {
+    var tr = document.createElement('tr');
+    var badge = a.type === 'UNKNOWN_CARD'
+      ? '<span class="badge badge-red">Unknown Card</span>'
+      : '<span class="badge badge-yellow">Door Held</span>';
+    tr.innerHTML =
+      '<td>' + a.time + '</td>' +
+      '<td>' + badge + '</td>' +
+      '<td style="font-family:monospace">' + a.uid + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  // Show banner for latest alert
+  if (alerts.length > 0) {
+    var banner = document.getElementById('alert-banner');
+    banner.textContent = '⚠ Alert: ' + alerts[0].type + ' — ' + alerts[0].uid;
+    banner.classList.add('show');
+    setTimeout(function() { banner.classList.remove('show'); }, 8000);
+  }
+}
+
+function showTapAlert(p) {
+  if (p.access !== 'GRANTED') {
+    var banner = document.getElementById('alert-banner');
+    banner.textContent = '🚫 Access Denied: ' + p.name + ' (' + p.access + ')';
+    banner.classList.add('show');
+    setTimeout(function() { banner.classList.remove('show'); }, 5000);
+  }
+}
+
+// ════════════════════════════════════════════════
+//  Door status
+// ════════════════════════════════════════════════
+function updateDoorStatus(event) {
+  var dot   = document.getElementById('door-dot');
+  var label = document.getElementById('door-label');
+  var text  = document.getElementById('door-status-text');
+
+  if (event === 'UNLOCKED') {
+    dot.className   = 'dot green';
+    label.textContent = 'Door: Open';
+    text.textContent  = '🔓 Unlocked';
+    text.style.color  = 'var(--green)';
+  } else if (event === 'LOCKED') {
+    dot.className   = 'dot red';
+    label.textContent = 'Door: Locked';
+    text.textContent  = '🔒 Locked';
+    text.style.color  = 'var(--red)';
+  } else if (event === 'HELD_OPEN') {
+    dot.className   = 'dot yellow';
+    label.textContent = 'Door: Held Open!';
+    text.textContent  = '⚠ Held Open';
+    text.style.color  = 'var(--yellow)';
+  }
+}
+
+// ════════════════════════════════════════════════
+//  Attendance stats (for stat tiles)
+// ════════════════════════════════════════════════
+function loadAttendanceStats() {
+    if (_statsFetching) return;
+    _statsFetching = true;
+    fetch(API + '/attendance?_=' + Date.now(), { headers: { 'Cache-Control': 'no-cache' } })
+        .then(function(r) { return r.json(); })
+        .then(function(rows) {
+            var nowMs = Date.now() + (demoMode ? demoOffsetSeconds * 1000 : 0);
+            var todayMidnight = new Date(nowMs);
+            todayMidnight.setHours(0, 0, 0, 0);
+            var todayTs = Math.floor(todayMidnight.getTime() / 1000);
+
+            var todayRows = rows.filter(function(r) {
+                return r.timestamp >= todayTs;
+            });
+            var lateToday = todayRows.filter(function(r) {
+                return r.action === 'CHECK_IN' && r.isLate;
+            });
+
+            var lastAction = {};
+            rows.forEach(function(r) {
+                if (!lastAction[r.uid] ||
+                    r.timestamp > lastAction[r.uid].timestamp) {
+                    lastAction[r.uid] = {
+                        action: r.action,
+                        timestamp: r.timestamp
+                    };
+                }
+            });
+            var insideCount = Object.values(lastAction).filter(function(v) {
+                return v.action === 'CHECK_IN';
+            }).length;
+
+            document.getElementById('stat-today').textContent  = todayRows.length;
+            document.getElementById('stat-inside').textContent = insideCount;
+            document.getElementById('stat-late').textContent   = lateToday.length;
+        })
+        .catch(function(err) {
+            console.error('Stats fetch error:', err);
+        })
+        .finally(function() {
+            _statsFetching = false;
+        });
+}
+
+function debouncedStats() {
+    if (_statsDebounceTimer) clearTimeout(_statsDebounceTimer);
+    _statsDebounceTimer = setTimeout(loadAttendanceStats, 300);
+}
+
+// ════════════════════════════════════════════════
+//  Attendance table
+// ════════════════════════════════════════════════
+function loadAttendance() {
+  fetch(API + '/attendance')
+    .then(function(r) { return r.json(); })
+    .then(function(rows) {
+      var filterDate = document.getElementById('filter-date').value;
+      var tbody = document.getElementById('attendance-body');
+      tbody.innerHTML = '';
+
+      // Group CHECK_IN / CHECK_OUT pairs by uid+date
+      var sessions = {};
+      rows = rows.filter(function(r) { return r.access === 'GRANTED'; });
+      rows.forEach(function(r) {
+        var d = new Date(r.timestamp * 1000);
+        var dateStr = d.toLocaleDateString('en-GB');
+        if (filterDate) {
+          var fd = new Date(filterDate).toLocaleDateString('en-GB');
+          if (dateStr !== fd) return;
+        }
+        var key = r.uid + '_' + dateStr;
+        if (!sessions[key]) {
+          sessions[key] = { name: r.name, date: dateStr,
+                            checkIn: null, checkOut: null, isLate: false };
+        }
+        if (r.action === 'CHECK_IN') {
+          sessions[key].checkIn = r.timestamp;
+          sessions[key].isLate  = r.isLate;
+        }
+        if (r.action === 'CHECK_OUT') {
+          sessions[key].checkOut = r.timestamp;
+        }
+      });
+
+      var sorted = Object.values(sessions).sort(function(a, b) {
+        return (b.checkIn || 0) - (a.checkIn || 0);
+      });
+
+      sorted.forEach(function(s) {
+        var tr = document.createElement('tr');
+        if (s.isLate) tr.style.background = 'rgba(245,158,11,0.05)';
+
+        var inTime  = s.checkIn
+          ? new Date(s.checkIn  * 1000).toLocaleTimeString('en-GB') : '--';
+        var outTime = s.checkOut
+          ? new Date(s.checkOut * 1000).toLocaleTimeString('en-GB') : '--';
+
+        var duration = '--';
+        if (s.checkIn && s.checkOut) {
+          var secs = s.checkOut - s.checkIn;
+          var h = Math.floor(secs / 3600);
+          var m = Math.floor((secs % 3600) / 60);
+          duration = h + 'h ' + m + 'm';
+        }
+
+        var statusBadge = s.checkOut
+          ? '<span class="badge badge-blue">Complete</span>'
+          : '<span class="badge badge-green">Inside</span>';
+        var lateBadge = s.isLate
+          ? '<span class="badge badge-yellow">Late</span>'
+          : '<span class="badge badge-green">On Time</span>';
+
+        tr.innerHTML =
+          '<td><strong>' + s.name  + '</strong></td>' +
+          '<td>' + s.date     + '</td>' +
+          '<td>' + inTime     + '</td>' +
+          '<td>' + outTime    + '</td>' +
+          '<td>' + duration   + '</td>' +
+          '<td>' + statusBadge + '</td>' +
+          '<td>' + lateBadge  + '</td>';
+        tbody.appendChild(tr);
+      });
+
+      if (sorted.length === 0) {
+        tbody.innerHTML =
+          '<tr><td colspan="7" style="text-align:center;color:var(--text3);' +
+          'padding:24px">No records found</td></tr>';
+      }
+    });
+}
+
+// ════════════════════════════════════════════════
+//  Analytics
+// ════════════════════════════════════════════════
+function loadAnalytics() {
+  fetch(API + '/weekly')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var maxDays = 7;
+      var wBars = document.getElementById('weekly-bars');
+      var lBars = document.getElementById('late-bars');
+      wBars.innerHTML = '';
+      lBars.innerHTML = '';
+
+      if (!data.length) {
+        wBars.innerHTML =
+          '<p style="color:var(--text3);font-size:13px">No data yet</p>';
+        lBars.innerHTML =
+          '<p style="color:var(--text3);font-size:13px">No data yet</p>';
+        return;
+      }
+
+      data.forEach(function(row) {
+        var pct = Math.round((row.days / maxDays) * 100);
+        wBars.innerHTML +=
+          '<div class="bar-wrap">' +
+          '<div class="bar-label"><span>' + row.name + '</span>' +
+          '<span>' + row.days + ' days</span></div>' +
+          '<div class="bar-track"><div class="bar-fill" style="width:' +
+          pct + '%"></div></div></div>';
+
+        var latePct = row.days > 0
+          ? Math.round((row.lateDays / row.days) * 100) : 0;
+        lBars.innerHTML +=
+          '<div class="bar-wrap">' +
+          '<div class="bar-label"><span>' + row.name + '</span>' +
+          '<span>' + row.lateDays + ' late</span></div>' +
+          '<div class="bar-track"><div class="bar-fill late" style="width:' +
+          latePct + '%"></div></div></div>';
+      });
+    });
+}
+
+// ════════════════════════════════════════════════
+//  CSV Export
+// ════════════════════════════════════════════════
+function exportCSV() {
+  window.location.href = API + '/export-csv';
+}
+
+// ════════════════════════════════════════════════
+//  MQTT command helper
+// ════════════════════════════════════════════════
+function sendCmd(topic, payload) {
+console.log('sendCmd called:', topic, JSON.stringify(payload));
+return fetch('http://192.168.100.13:1880/cmd', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ topic: topic, payload: payload })
+})
+.then(function(r) {
+console.log('CMD response:', r.status);
+return r;
+})
+.catch(function(err) {
+console.error('CMD failed:', err);
+});
+}
+
+// ════════════════════════════════════════════════
+//  Door commands
+// ════════════════════════════════════════════════
+function remoteDoor(cmd) {
+  sendCmd('access/cmd/door', { cmd: cmd });
+}
+
+var _doorCmdLock = false;
+document.getElementById('btn-unlock').addEventListener('click', function() {
+    if (_doorCmdLock) return;
+    _doorCmdLock = true;
+    remoteDoor('UNLOCK');
+    setTimeout(function() { _doorCmdLock = false; }, 500);
+});
+
+document.getElementById('btn-lock').addEventListener('click', function() {
+    if (_doorCmdLock) return;
+    _doorCmdLock = true;
+    remoteDoor('LOCK');
+    setTimeout(function() { _doorCmdLock = false; }, 500);
+});
+
+// ════════════════════════════════════════════════
+//  Demo mode
+// ════════════════════════════════════════════════
+
+function updateDemoTimeDisplay() {
+    if (!demoMode) return;
+    var demoNow = new Date(Date.now() + demoOffsetSeconds * 1000);
+    var timeStr = demoNow.toLocaleTimeString('en-GB');
+    var dateStr = demoNow.toLocaleDateString('en-GB');
+    document.getElementById('esp-time').textContent = timeStr + ' ' + dateStr;
+    document.getElementById('demo-time-display').textContent = timeStr + ' ' + dateStr;
+}
+
+function toggleDemo() {
+    demoMode = !demoMode;
+    if (!demoMode) demoOffsetSeconds = 0;
+    sendCmd('access/cmd/time', {
+        mode: demoMode ? 'DEMO' : 'REAL',
+        offsetSeconds: 0
+    });
+    updateDemoUI();
+    if (!demoMode) {
+      // Immediately restore real time
+      var now = new Date();
+      document.getElementById('esp-time').textContent = 
+        now.toLocaleTimeString('en-GB');
+    }
+    if (demoMode) updateDemoTimeDisplay();
+}
+
+function addDemoOffset(seconds) {
+  if (!demoMode) {
+    alert('Enable Demo Mode first');
+    return;
+  }
+  demoOffsetSeconds += seconds;
+  sendCmd('access/cmd/time', { mode: 'DEMO', offsetSeconds: seconds });
+  updateDemoTimeDisplay();
+}
+
+function updateDemoUI() {
+  var label = document.getElementById('demo-status-label');
+  var bar   = document.getElementById('demo-bar-live');
+  var ind   = document.getElementById('demo-indicator');
+  if (demoMode) {
+    label.textContent      = 'ON';
+    label.style.color      = 'var(--yellow)';
+    bar.style.display      = 'flex';
+    ind.textContent        = '⏱ DEMO';
+    ind.style.color        = 'var(--yellow)';
+  } else {
+    label.textContent      = 'OFF';
+    label.style.color      = 'var(--text2)';
+    bar.style.display      = 'none';
+    ind.textContent        = '';
+  }
+}
+
+// ════════════════════════════════════════════════
+//  Clear history
+// ════════════════════════════════════════════════
+function clearHistory() {
+  if (!confirm('Clear ALL attendance history? This cannot be undone.')) return;
+  fetch(API + '/clear-history', { method: 'POST' })
+    .then(function() {
+      document.getElementById('feed-body').innerHTML = '';
+      document.getElementById('attendance-body').innerHTML = '';
+      debouncedStats();
+      alert('History cleared.');
+    });
+}
+
+function clearDemoRecords() {
+    if (!confirm('Clear all demo attendance records?')) return;
+    fetch(API + '/clear-demo', { method: 'POST' })
+        .then(function() {
+            loadAttendanceStats();
+            alert('Demo records cleared.');
+        });
+}
+
+// ════════════════════════════════════════════════
+//  Card Management
+// ════════════════════════════════════════════════
+function loadCards() {
+  fetch(API + '/cards')
+    .then(function(r) { return r.json(); })
+    .then(function(cards) {
+      var tbody = document.getElementById('cards-body');
+      tbody.innerHTML = '';
+
+      if (!cards.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="5" style="text-align:center;' +
+          'color:var(--text3);padding:24px">No cards enrolled yet</td></tr>';
+        return;
+      }
+
+      cards.forEach(function(card) {
+        var tr = document.createElement('tr');
+        var accessBadge = card.whitelisted
+          ? '<span class="badge badge-green">Whitelisted</span>'
+          : '<span class="badge badge-red">Blacklisted</span>';
+        var expiry = card.tempExpiry
+          ? new Date(card.tempExpiry * 1000).toLocaleString('en-GB')
+          : '<span style="color:var(--text3)">Permanent</span>';
+
+        tr.innerHTML =
+          '<td style="font-family:monospace">' + card.uid + '</td>' +
+          '<td><strong>' + card.name + '</strong></td>' +
+          '<td>' + accessBadge + '</td>' +
+          '<td>' + expiry + '</td>' +
+          '<td>' +
+          '<button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;margin-right:6px" ' +
+          'onclick="editCard(\'' + card.uid + '\',\'' + card.name + '\',' +
+          card.whitelisted + ',' + card.tempExpiry + ')">Edit</button>' +
+          '<button class="btn btn-danger" style="padding:4px 10px;font-size:11px" ' +
+          'onclick="deleteCard(\'' + card.uid + '\',\'' + card.name + '\')">Delete</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+    });
+}
+
+function startEnroll() {
+  sendCmd('access/cmd/enroll', { cmd: 'START' });
+  document.getElementById('enroll-status').textContent =
+    '📡 Enrollment active — tap a card on the reader...';
+  document.getElementById('enroll-uid').value = '';
+}
+
+function stopEnroll() {
+  sendCmd('access/cmd/enroll', { cmd: 'STOP' });
+  document.getElementById('enroll-status').textContent = '';
+  document.getElementById('enroll-uid').value = '';
+  document.getElementById('enroll-name').value = '';
+}
+
+function saveEnrolled() {
+  var uid    = document.getElementById('enroll-uid').value.trim();
+  var name   = document.getElementById('enroll-name').value.trim();
+  var access = document.getElementById('enroll-access').value === '1';
+  var expiry = document.getElementById('enroll-expiry').value;
+  var tempExpiry = expiry ? Math.floor(new Date(expiry).getTime() / 1000) : 0;
+
+  if (!uid)  { alert('No card scanned yet'); return; }
+  if (!name) { alert('Enter a name');        return; }
+
+  var payload = {
+    uid: uid, name: name,
+    whitelisted: access, tempExpiry: tempExpiry
+  };
+
+  // Send to ESP32
+  sendCmd('access/cmd/enroll/save', payload);
+
+  // Mirror to SQLite
+  fetch(API + '/cmd', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      topic: 'access/cmd/enroll/save',
+      payload: payload
+    })
+  });
+
+  // Also save to cards table directly via a small workaround:
+  // We'll use the /cmd endpoint but the cards table is updated
+  // by a separate flow node listening on enroll/save topic
+  document.getElementById('enroll-status').textContent =
+    '✓ Saved: ' + name + ' (' + uid + ')';
+
+  setTimeout(function() {
+    stopEnroll();
+    loadCards();
+  }, 1500);
+}
+
+function editCard(uid, name, whitelisted, tempExpiry) {
+  var newName = prompt('Name:', name);
+  if (newName === null) return;
+  var wl = confirm('Whitelisted? (OK = Yes, Cancel = Blacklisted)');
+  var expiryInput = prompt(
+    'Expiry Unix timestamp (0 = permanent):', tempExpiry);
+  if (expiryInput === null) return;
+
+  sendCmd('access/cmd/card/edit', {
+    uid: uid,
+    name: newName,
+    whitelisted: wl,
+    tempExpiry: parseInt(expiryInput) || 0
+  });
+
+  setTimeout(loadCards, 800);
+}
+
+function deleteCard(uid, name) {
+  if (!confirm('Delete card for ' + name + '? This cannot be undone.')) return;
+  sendCmd('access/cmd/card/delete', { uid: uid });
+  setTimeout(loadCards, 800);
+}
+</script>

@@ -1,0 +1,936 @@
+[
+    {
+        "id": "4ceb564ba5b1c485",
+        "type": "tab",
+        "label": "Flow 2",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "node-init-db",
+        "type": "inject",
+        "z": "4ceb564ba5b1c485",
+        "name": "Init DB on start",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 1,
+        "topic": "",
+        "payload": "init",
+        "payloadType": "str",
+        "x": 200,
+        "y": 40,
+        "wires": [
+            [
+                "node-create-tables"
+            ]
+        ]
+    },
+    {
+        "id": "node-create-tables",
+        "type": "sqlite",
+        "z": "4ceb564ba5b1c485",
+        "mydb": "sqlite-db",
+        "sqlquery": "fixed",
+        "sql": "CREATE TABLE IF NOT EXISTS attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, name TEXT, action TEXT, access TEXT, timestamp INTEGER, isLate INTEGER, checkInTime INTEGER, demo INTEGER);\nCREATE TABLE IF NOT EXISTS cards (uid TEXT PRIMARY KEY, name TEXT, whitelisted INTEGER, tempExpiry INTEGER);",
+        "name": "Create Tables",
+        "x": 420,
+        "y": 40,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "node-mqtt-tap",
+        "type": "mqtt in",
+        "z": "4ceb564ba5b1c485",
+        "name": "access/tap",
+        "topic": "access/tap",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "1889ade0a1e00edf",
+        "nl": false,
+        "rap": false,
+        "inputs": 0,
+        "x": 200,
+        "y": 120,
+        "wires": [
+            [
+                "node-process-tap"
+            ]
+        ]
+    },
+    {
+        "id": "node-process-tap",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Process Tap",
+        "func": "var p = msg.payload;\nvar ts = p.timestamp || Math.floor(Date.now()/1000);\n\n// Build display data\nvar time = new Date(ts * 1000).toLocaleTimeString('en-GB');\nvar date = new Date(ts * 1000).toLocaleDateString('en-GB');\np.displayTime = time + ' ' + date;\np.lateFlag = p.isLate ? '⚠ LATE' : '';\n\n// Store full payload for feed update\nflow.set('lastTap', p);\n\n// Sanitize strings to prevent SQL issues\nvar uid    = (p.uid    || '').replace(/'/g, \"''\");\nvar name   = (p.name   || '').replace(/'/g, \"''\");\nvar action = (p.action || '').replace(/'/g, \"''\");\nvar access = (p.access || '').replace(/'/g, \"''\");\n\n// Message 1 → Save Tap (SQLite fixed query)\nvar dbMsg = {\n    topic: \"INSERT INTO attendance (uid, name, action, access, timestamp, isLate, checkInTime, demo) VALUES ('\" + uid + \"','\" + name + \"','\" + action + \"','\" + access + \"',\" + ts + \",\" + (p.isLate ? 1 : 0) + \",\" + (p.checkInTime || 0) + \",\" + (p.demo ? 1 : 0) + \")\",\n    payload: p\n};\n\n// Message 2 → Update Live Feed\nvar feedMsg = { payload: p };\n\nreturn [dbMsg, feedMsg];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 420,
+        "y": 120,
+        "wires": [
+            [
+                "f0a5c6919373fc6b"
+            ],
+            [
+                "node-update-feed"
+            ]
+        ]
+    },
+    {
+        "id": "node-update-feed",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Update Live Feed",
+        "func": "var p = msg.payload;\nvar feed = flow.get('tapFeed') || [];\nvar ts = p.timestamp || Math.floor(Date.now()/1000);\nvar time = new Date(ts * 1000).toLocaleTimeString('en-GB');\nvar date = new Date(ts * 1000).toLocaleDateString('en-GB');\n\nvar row = {\n  time: time + ' ' + date,\n  name: p.name || p.uid,\n  action: p.action,\n  access: p.access,\n  late: p.isLate ? '⚠' : '',\n  demo: p.demo ? '[DEMO]' : ''\n};\n\nfeed.unshift(row);\nif (feed.length > 50) feed = feed.slice(0, 50);\nflow.set('tapFeed', feed);\n\nmsg.payload = feed;\nreturn msg;",
+        "outputs": 1,
+        "x": 640,
+        "y": 140,
+        "wires": [
+            [
+                "node-dashboard-template"
+            ]
+        ]
+    },
+    {
+        "id": "node-mqtt-alert",
+        "type": "mqtt in",
+        "z": "4ceb564ba5b1c485",
+        "name": "access/alert",
+        "topic": "access/alert",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "1889ade0a1e00edf",
+        "nl": false,
+        "rap": false,
+        "inputs": 0,
+        "x": 200,
+        "y": 200,
+        "wires": [
+            [
+                "node-process-alert"
+            ]
+        ]
+    },
+    {
+        "id": "node-process-alert",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Process Alert",
+        "func": "var p = msg.payload;\nvar ts = p.timestamp || Math.floor(Date.now()/1000);\nvar time = new Date(ts * 1000).toLocaleTimeString('en-GB');\n\nvar alerts = flow.get('alerts') || [];\nalerts.unshift({\n  time: time,\n  type: p.type,\n  uid: p.uid || 'N/A',\n  demo: p.demo ? '[DEMO]' : ''\n});\nif (alerts.length > 20) alerts = alerts.slice(0, 20);\nflow.set('alerts', alerts);\n\nmsg.payload = { alertList: alerts };\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 420,
+        "y": 200,
+        "wires": [
+            [
+                "node-dashboard-template"
+            ]
+        ]
+    },
+    {
+        "id": "node-mqtt-door",
+        "type": "mqtt in",
+        "z": "4ceb564ba5b1c485",
+        "name": "access/door",
+        "topic": "access/door",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "1889ade0a1e00edf",
+        "nl": false,
+        "rap": false,
+        "inputs": 0,
+        "x": 210,
+        "y": 280,
+        "wires": [
+            [
+                "node-process-door"
+            ]
+        ]
+    },
+    {
+        "id": "node-process-door",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Process Door",
+        "func": "var p = msg.payload;\nflow.set('doorStatus', p.event);\nmsg.payload = p;\nreturn msg;",
+        "outputs": 1,
+        "x": 420,
+        "y": 280,
+        "wires": [
+            [
+                "node-dashboard-template"
+            ]
+        ]
+    },
+    {
+        "id": "node-mqtt-status",
+        "type": "mqtt in",
+        "z": "4ceb564ba5b1c485",
+        "name": "access/status",
+        "topic": "access/status",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "1889ade0a1e00edf",
+        "nl": false,
+        "rap": false,
+        "inputs": 0,
+        "x": 200,
+        "y": 360,
+        "wires": [
+            [
+                "node-process-status"
+            ]
+        ]
+    },
+    {
+        "id": "node-process-status",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Process Status",
+        "func": "flow.set('espStatus', msg.payload);\nmsg.payload = msg.payload;\nreturn msg;",
+        "outputs": 1,
+        "x": 420,
+        "y": 360,
+        "wires": [
+            [
+                "node-dashboard-template"
+            ]
+        ]
+    },
+    {
+        "id": "node-mqtt-enroll-scanned",
+        "type": "mqtt in",
+        "z": "4ceb564ba5b1c485",
+        "name": "access/enroll/scanned",
+        "topic": "access/enroll/scanned",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "1889ade0a1e00edf",
+        "nl": false,
+        "rap": false,
+        "inputs": 0,
+        "x": 220,
+        "y": 440,
+        "wires": [
+            [
+                "node-process-enroll-scanned"
+            ]
+        ]
+    },
+    {
+        "id": "node-process-enroll-scanned",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Process Enroll Scanned",
+        "func": "flow.set('lastScannedUID', msg.payload.uid);\nmsg.payload = msg.payload;\nreturn msg;",
+        "outputs": 1,
+        "x": 460,
+        "y": 440,
+        "wires": [
+            [
+                "node-dashboard-template"
+            ]
+        ]
+    },
+    {
+        "id": "node-http-attendance",
+        "type": "http in",
+        "z": "4ceb564ba5b1c485",
+        "name": "GET /attendance",
+        "url": "/attendance",
+        "method": "get",
+        "x": 210,
+        "y": 700,
+        "wires": [
+            [
+                "node-query-attendance"
+            ]
+        ]
+    },
+    {
+        "id": "node-query-attendance",
+        "type": "sqlite",
+        "z": "4ceb564ba5b1c485",
+        "mydb": "sqlite-db",
+        "sqlquery": "fixed",
+        "sql": "SELECT * FROM attendance ORDER BY timestamp ASC LIMIT 500",
+        "name": "Query Attendance",
+        "x": 450,
+        "y": 700,
+        "wires": [
+            [
+                "node-send-attendance"
+            ]
+        ]
+    },
+    {
+        "id": "node-send-attendance",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Send Attendance",
+        "func": "msg.res._res.setHeader('Content-Type', 'application/json');\nreturn msg;",
+        "outputs": 1,
+        "x": 670,
+        "y": 700,
+        "wires": [
+            [
+                "node-http-response-attendance"
+            ]
+        ]
+    },
+    {
+        "id": "node-http-response-attendance",
+        "type": "http response",
+        "z": "4ceb564ba5b1c485",
+        "name": "Response",
+        "statusCode": "200",
+        "x": 850,
+        "y": 700,
+        "wires": []
+    },
+    {
+        "id": "node-http-csv",
+        "type": "http in",
+        "z": "4ceb564ba5b1c485",
+        "name": "GET /export-csv",
+        "url": "/export-csv",
+        "method": "get",
+        "x": 210,
+        "y": 780,
+        "wires": [
+            [
+                "node-query-csv"
+            ]
+        ]
+    },
+    {
+        "id": "node-query-csv",
+        "type": "sqlite",
+        "z": "4ceb564ba5b1c485",
+        "mydb": "sqlite-db",
+        "sqlquery": "fixed",
+        "sql": "SELECT * FROM attendance ORDER BY timestamp ASC",
+        "name": "Query All",
+        "x": 410,
+        "y": 780,
+        "wires": [
+            [
+                "node-build-csv"
+            ]
+        ]
+    },
+    {
+        "id": "node-build-csv",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Build CSV",
+        "func": "var rows = msg.payload;\nvar csv = 'ID,UID,Name,Action,Access,Timestamp,Time,IsLate,Demo\\n';\nrows.forEach(function(r) {\n  var t = new Date(r.timestamp * 1000).toLocaleString('en-GB');\n  csv += [r.id, r.uid, r.name, r.action, r.access, r.timestamp, t, r.isLate ? 'YES' : 'NO', r.demo ? 'YES' : 'NO'].join(',') + '\\n';\n});\nmsg.payload = csv;\nmsg.headers = {\n  'Content-Type': 'text/csv',\n  'Content-Disposition': 'attachment; filename=\"attendance.csv\"'\n};\nreturn msg;",
+        "outputs": 1,
+        "x": 610,
+        "y": 780,
+        "wires": [
+            [
+                "node-http-response-csv"
+            ]
+        ]
+    },
+    {
+        "id": "node-http-response-csv",
+        "type": "http response",
+        "z": "4ceb564ba5b1c485",
+        "name": "CSV Response",
+        "statusCode": "200",
+        "x": 810,
+        "y": 780,
+        "wires": []
+    },
+    {
+        "id": "node-http-cards",
+        "type": "http in",
+        "z": "4ceb564ba5b1c485",
+        "name": "GET /cards",
+        "url": "/cards",
+        "method": "get",
+        "x": 210,
+        "y": 860,
+        "wires": [
+            [
+                "node-query-cards"
+            ]
+        ]
+    },
+    {
+        "id": "node-query-cards",
+        "type": "sqlite",
+        "z": "4ceb564ba5b1c485",
+        "mydb": "sqlite-db",
+        "sqlquery": "fixed",
+        "sql": "SELECT * FROM cards",
+        "name": "Query Cards",
+        "x": 410,
+        "y": 860,
+        "wires": [
+            [
+                "node-http-response-cards"
+            ]
+        ]
+    },
+    {
+        "id": "node-http-response-cards",
+        "type": "http response",
+        "z": "4ceb564ba5b1c485",
+        "name": "Response",
+        "statusCode": "200",
+        "x": 630,
+        "y": 860,
+        "wires": []
+    },
+    {
+        "id": "node-http-clear",
+        "type": "http in",
+        "z": "4ceb564ba5b1c485",
+        "name": "POST /clear-history",
+        "url": "/clear-history",
+        "method": "post",
+        "x": 230,
+        "y": 940,
+        "wires": [
+            [
+                "node-clear-history"
+            ]
+        ]
+    },
+    {
+        "id": "node-clear-history",
+        "type": "sqlite",
+        "z": "4ceb564ba5b1c485",
+        "mydb": "sqlite-db",
+        "sqlquery": "fixed",
+        "sql": "DELETE FROM attendance",
+        "name": "Clear History",
+        "x": 450,
+        "y": 940,
+        "wires": [
+            [
+                "node-after-clear"
+            ]
+        ]
+    },
+    {
+        "id": "node-after-clear",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "After Clear",
+        "func": "flow.set('tapFeed', []);\nflow.set('alerts', []);\n\n// Message 1 → HTTP response\nvar httpMsg = { payload: {success: true}, res: msg.res, req: msg.req };\n\n// Message 2 → MQTT presence reset\nvar mqttMsg = { payload: JSON.stringify({action: \"RESET_ALL\"}) };\n\nreturn [httpMsg, mqttMsg];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 650,
+        "y": 940,
+        "wires": [
+            [
+                "node-http-response-clear"
+            ],
+            [
+                "node-mqtt-presence-reset"
+            ]
+        ]
+    },
+    {
+        "id": "node-http-response-clear",
+        "type": "http response",
+        "z": "4ceb564ba5b1c485",
+        "name": "Response",
+        "statusCode": "200",
+        "x": 850,
+        "y": 920,
+        "wires": []
+    },
+    {
+        "id": "node-mqtt-presence-reset",
+        "type": "mqtt out",
+        "z": "4ceb564ba5b1c485",
+        "name": "Publish Presence Reset",
+        "topic": "access/cmd/presence/reset",
+        "qos": "1",
+        "retain": false,
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "1889ade0a1e00edf",
+        "x": 870,
+        "y": 960,
+        "wires": []
+    },
+    {
+        "id": "node-http-weekly",
+        "type": "http in",
+        "z": "4ceb564ba5b1c485",
+        "name": "GET /weekly",
+        "url": "/weekly",
+        "method": "get",
+        "x": 220,
+        "y": 1100,
+        "wires": [
+            [
+                "node-query-weekly"
+            ]
+        ]
+    },
+    {
+        "id": "node-query-weekly",
+        "type": "sqlite",
+        "z": "4ceb564ba5b1c485",
+        "mydb": "sqlite-db",
+        "sqlquery": "fixed",
+        "sql": "SELECT name, COUNT(*) as days, SUM(isLate) as lateDays FROM attendance WHERE action='CHECK_IN' AND timestamp >= strftime('%s', 'now', '-7 days') GROUP BY name",
+        "name": "Weekly Stats",
+        "x": 440,
+        "y": 1100,
+        "wires": [
+            [
+                "node-http-response-weekly"
+            ]
+        ]
+    },
+    {
+        "id": "node-http-response-weekly",
+        "type": "http response",
+        "z": "4ceb564ba5b1c485",
+        "name": "Response",
+        "statusCode": "200",
+        "x": 660,
+        "y": 1100,
+        "wires": []
+    },
+    {
+        "id": "node-cmd-publish",
+        "type": "http in",
+        "z": "4ceb564ba5b1c485",
+        "name": "POST /cmd",
+        "url": "/cmd",
+        "method": "post",
+        "x": 240,
+        "y": 1180,
+        "wires": [
+            [
+                "node-route-cmd"
+            ]
+        ]
+    },
+    {
+        "id": "node-route-cmd",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Route Command",
+        "func": "var b = msg.payload;\nvar topic = b.topic;\nvar payload = b.payload;\n\nif (!topic || !payload) {\n    msg.payload = {error: 'missing topic or payload'};\n    msg.statusCode = 400;\n    return [null, msg];\n}\n\nmsg.topic = topic;\nmsg.payload = typeof payload === 'string' ? payload : JSON.stringify(payload);\n\n// Clone message for HTTP response\nvar resmsg = {\n    payload: {success: true},\n    statusCode: 200,\n    _msgid: msg._msgid,\n    res: msg.res,\n    req: msg.req\n};\n\nnode.send([[msg], [resmsg]]);\nreturn null;",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 450,
+        "y": 1180,
+        "wires": [
+            [
+                "node-mqtt-cmd-out"
+            ],
+            [
+                "node-http-response-cmd"
+            ]
+        ]
+    },
+    {
+        "id": "node-mqtt-cmd-out",
+        "type": "mqtt out",
+        "z": "4ceb564ba5b1c485",
+        "name": "Publish Command",
+        "topic": "",
+        "qos": "1",
+        "retain": false,
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "1889ade0a1e00edf",
+        "x": 670,
+        "y": 1160,
+        "wires": []
+    },
+    {
+        "id": "node-http-response-cmd",
+        "type": "http response",
+        "z": "4ceb564ba5b1c485",
+        "name": "Response",
+        "statusCode": "200",
+        "x": 670,
+        "y": 1200,
+        "wires": []
+    },
+    {
+        "id": "node-dashboard-template",
+        "type": "ui_template",
+        "z": "4ceb564ba5b1c485",
+        "group": "ui-group-main",
+        "name": "Main Dashboard",
+        "order": 1,
+        "width": "24",
+        "height": "0",
+        "format": "<style>\n    :root {\n        --bg: #0a0e1a;\n        --surface: #111827;\n        --surface2: #1a2235;\n        --border: #1e2d45;\n        --accent: #3b82f6;\n        --accent2: #06b6d4;\n        --green: #10b981;\n        --red: #ef4444;\n        --yellow: #f59e0b;\n        --text: #e2e8f0;\n        --text2: #94a3b8;\n        --text3: #64748b;\n    }\n\n    * {\n        box-sizing: border-box;\n        margin: 0;\n        padding: 0;\n    }\n\n    #rfid-root {\n        font-family: 'Segoe UI', sans-serif;\n        background: var(--bg);\n        color: var(--text);\n        min-height: 100vh;\n        padding: 0;\n    }\n\n    /* ── Login Overlay ─────────────────────────────── */\n    #login-overlay {\n        position: fixed;\n        inset: 0;\n        background: var(--bg);\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        z-index: 9999;\n    }\n\n    #login-overlay.hidden {\n        display: none;\n    }\n\n    .login-box {\n        background: var(--surface);\n        border: 1px solid var(--border);\n        border-radius: 16px;\n        padding: 48px 40px;\n        width: 360px;\n        text-align: center;\n    }\n\n    .login-box h1 {\n        font-size: 22px;\n        font-weight: 700;\n        margin-bottom: 6px;\n        color: var(--text);\n    }\n\n    .login-box p {\n        color: var(--text2);\n        font-size: 13px;\n        margin-bottom: 28px;\n    }\n\n    .login-box input {\n        width: 100%;\n        padding: 11px 14px;\n        background: var(--surface2);\n        border: 1px solid var(--border);\n        border-radius: 8px;\n        color: var(--text);\n        font-size: 14px;\n        margin-bottom: 12px;\n        outline: none;\n    }\n\n    .login-box input:focus {\n        border-color: var(--accent);\n    }\n\n    .login-box button {\n        width: 100%;\n        padding: 11px;\n        background: var(--accent);\n        color: #fff;\n        border: none;\n        border-radius: 8px;\n        font-size: 14px;\n        font-weight: 600;\n        cursor: pointer;\n        margin-top: 4px;\n    }\n\n    .login-box button:hover {\n        background: #2563eb;\n    }\n\n    .login-error {\n        color: var(--red);\n        font-size: 12px;\n        margin-top: 8px;\n    }\n\n    /* ── Header ────────────────────────────────────── */\n    .header {\n        background: var(--surface);\n        border-bottom: 1px solid var(--border);\n        padding: 14px 24px;\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n    }\n\n    .header-left {\n        display: flex;\n        align-items: center;\n        gap: 12px;\n    }\n\n    .header-left h1 {\n        font-size: 18px;\n        font-weight: 700;\n    }\n\n    .header-left span {\n        font-size: 12px;\n        color: var(--text2);\n    }\n\n    .header-right {\n        display: flex;\n        align-items: center;\n        gap: 16px;\n    }\n\n    .status-pill {\n        display: flex;\n        align-items: center;\n        gap: 6px;\n        background: var(--surface2);\n        border: 1px solid var(--border);\n        border-radius: 20px;\n        padding: 5px 12px;\n        font-size: 12px;\n    }\n\n    .dot {\n        width: 8px;\n        height: 8px;\n        border-radius: 50%;\n        background: var(--text3);\n    }\n\n    .dot.green {\n        background: var(--green);\n        box-shadow: 0 0 6px var(--green);\n    }\n\n    .dot.red {\n        background: var(--red);\n        box-shadow: 0 0 6px var(--red);\n    }\n\n    .dot.yellow {\n        background: var(--yellow);\n    }\n\n    /* ── Nav Tabs ───────────────────────────────────── */\n    .nav {\n        background: var(--surface);\n        border-bottom: 1px solid var(--border);\n        display: flex;\n        gap: 0;\n        padding: 0 24px;\n    }\n\n    .nav-btn {\n        padding: 12px 20px;\n        background: none;\n        border: none;\n        border-bottom: 2px solid transparent;\n        color: var(--text2);\n        font-size: 13px;\n        font-weight: 500;\n        cursor: pointer;\n        transition: all 0.2s;\n    }\n\n    .nav-btn:hover {\n        color: var(--text);\n    }\n\n    .nav-btn.active {\n        color: var(--accent);\n        border-bottom-color: var(--accent);\n    }\n\n    /* ── Layout ─────────────────────────────────────── */\n    .page {\n        display: none;\n        padding: 20px 24px;\n    }\n\n    .page.active {\n        display: block;\n    }\n\n    .grid-2 {\n        display: grid;\n        grid-template-columns: 1fr 1fr;\n        gap: 16px;\n    }\n\n    .grid-3 {\n        display: grid;\n        grid-template-columns: 1fr 1fr 1fr;\n        gap: 16px;\n    }\n\n    /* ── Cards ──────────────────────────────────────── */\n    .card {\n        background: var(--surface);\n        border: 1px solid var(--border);\n        border-radius: 12px;\n        padding: 20px;\n    }\n\n    .card-title {\n        font-size: 12px;\n        font-weight: 600;\n        text-transform: uppercase;\n        letter-spacing: 0.08em;\n        color: var(--text2);\n        margin-bottom: 16px;\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n    }\n\n    /* ── Stat tiles ─────────────────────────────────── */\n    .stat-val {\n        font-size: 36px;\n        font-weight: 700;\n        color: var(--text);\n        line-height: 1;\n    }\n\n    .stat-label {\n        font-size: 12px;\n        color: var(--text2);\n        margin-top: 6px;\n    }\n\n    /* ── Tables ─────────────────────────────────────── */\n    .tbl-wrap {\n        overflow-x: auto;\n    }\n\n    table {\n        width: 100%;\n        border-collapse: collapse;\n        font-size: 13px;\n    }\n\n    th {\n        text-align: left;\n        padding: 8px 12px;\n        color: var(--text3);\n        font-weight: 600;\n        font-size: 11px;\n        text-transform: uppercase;\n        letter-spacing: 0.06em;\n        border-bottom: 1px solid var(--border);\n    }\n\n    td {\n        padding: 10px 12px;\n        border-bottom: 1px solid var(--border);\n        color: var(--text);\n    }\n\n    tr:last-child td {\n        border-bottom: none;\n    }\n\n    tr:hover td {\n        background: var(--surface2);\n    }\n\n    /* ── Badges ─────────────────────────────────────── */\n    .badge {\n        display: inline-block;\n        padding: 2px 8px;\n        border-radius: 4px;\n        font-size: 11px;\n        font-weight: 600;\n    }\n\n    .badge-green {\n        background: rgba(16, 185, 129, 0.15);\n        color: var(--green);\n    }\n\n    .badge-red {\n        background: rgba(239, 68, 68, 0.15);\n        color: var(--red);\n    }\n\n    .badge-yellow {\n        background: rgba(245, 158, 11, 0.15);\n        color: var(--yellow);\n    }\n\n    .badge-blue {\n        background: rgba(59, 130, 246, 0.15);\n        color: var(--accent);\n    }\n\n    .badge-gray {\n        background: rgba(100, 116, 139, 0.15);\n        color: var(--text3);\n    }\n\n    /* ── Buttons ────────────────────────────────────── */\n    .btn {\n        padding: 8px 16px;\n        border-radius: 8px;\n        border: none;\n        font-size: 13px;\n        font-weight: 600;\n        cursor: pointer;\n        transition: opacity 0.2s;\n    }\n\n    .btn:hover {\n        opacity: 0.85;\n    }\n\n    .btn-primary {\n        background: var(--accent);\n        color: #fff;\n    }\n\n    .btn-success {\n        background: var(--green);\n        color: #fff;\n    }\n\n    .btn-danger {\n        background: var(--red);\n        color: #fff;\n    }\n\n    .btn-warning {\n        background: var(--yellow);\n        color: #fff;\n    }\n\n    .btn-ghost {\n        background: var(--surface2);\n        color: var(--text);\n        border: 1px solid var(--border);\n    }\n\n    /* ── Forms ──────────────────────────────────────── */\n    .form-row {\n        display: flex;\n        gap: 10px;\n        align-items: flex-end;\n        flex-wrap: wrap;\n        margin-bottom: 12px;\n    }\n\n    .form-group {\n        display: flex;\n        flex-direction: column;\n        gap: 5px;\n        flex: 1;\n    }\n\n    .form-group label {\n        font-size: 11px;\n        color: var(--text2);\n        font-weight: 600;\n    }\n\n    .form-group input,\n    .form-group select {\n        padding: 9px 12px;\n        background: var(--surface2);\n        border: 1px solid var(--border);\n        border-radius: 8px;\n        color: var(--text);\n        font-size: 13px;\n        outline: none;\n        min-width: 140px;\n    }\n\n    .form-group input:focus,\n    .form-group select:focus {\n        border-color: var(--accent);\n    }\n\n    /* ── Demo Mode Bar ──────────────────────────────── */\n    .demo-bar {\n        background: rgba(245, 158, 11, 0.1);\n        border: 1px solid rgba(245, 158, 11, 0.3);\n        border-radius: 8px;\n        padding: 10px 16px;\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        margin-bottom: 16px;\n    }\n\n    .demo-bar span {\n        color: var(--yellow);\n        font-size: 13px;\n        font-weight: 600;\n    }\n\n    /* ── Alert banner ───────────────────────────────── */\n    .alert-banner {\n        background: rgba(239, 68, 68, 0.1);\n        border: 1px solid rgba(239, 68, 68, 0.3);\n        border-radius: 8px;\n        padding: 10px 16px;\n        color: var(--red);\n        font-size: 13px;\n        margin-bottom: 12px;\n        display: none;\n    }\n\n    .alert-banner.show {\n        display: block;\n    }\n\n    /* ── Admin lock overlay ─────────────────────────── */\n    #admin-lock {\n        position: absolute;\n        inset: 0;\n        background: rgba(10, 14, 26, 0.92);\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        z-index: 10;\n        border-radius: 12px;\n    }\n\n    #admin-lock.hidden {\n        display: none;\n    }\n\n    .admin-lock-box {\n        background: var(--surface);\n        border: 1px solid var(--border);\n        border-radius: 12px;\n        padding: 32px;\n        width: 300px;\n        text-align: center;\n    }\n\n    .admin-lock-box h3 {\n        margin-bottom: 8px;\n    }\n\n    .admin-lock-box p {\n        color: var(--text2);\n        font-size: 12px;\n        margin-bottom: 20px;\n    }\n\n    /* ── Door status ────────────────────────────────── */\n    .door-status {\n        font-size: 28px;\n        font-weight: 700;\n        margin: 8px 0;\n    }\n\n    /* ── Analytics bars ─────────────────────────────── */\n    .bar-wrap {\n        margin-bottom: 12px;\n    }\n\n    .bar-label {\n        display: flex;\n        justify-content: space-between;\n        font-size: 12px;\n        color: var(--text2);\n        margin-bottom: 4px;\n    }\n\n    .bar-track {\n        background: var(--surface2);\n        border-radius: 4px;\n        height: 8px;\n        overflow: hidden;\n    }\n\n    .bar-fill {\n        height: 100%;\n        background: var(--accent);\n        border-radius: 4px;\n        transition: width 0.6s ease;\n    }\n\n    .bar-fill.late {\n        background: var(--yellow);\n    }\n\n    /* ── Scrollable feed ────────────────────────────── */\n    .feed-wrap {\n        max-height: 320px;\n        overflow-y: auto;\n    }\n\n    .feed-wrap::-webkit-scrollbar {\n        width: 4px;\n    }\n\n    .feed-wrap::-webkit-scrollbar-track {\n        background: var(--surface2);\n    }\n\n    .feed-wrap::-webkit-scrollbar-thumb {\n        background: var(--border);\n        border-radius: 2px;\n    }\n</style>\n\n<div id=\"rfid-root\">\n\n    <!-- ── Login Overlay ──────────────────────────── -->\n    <div id=\"login-overlay\">\n        <div class=\"login-box\">\n            <h1>🔒 NexEntry</h1>\n            <p>Access Control & Presence Management</p>\n            <input type=\"text\"     id=\"login-user\" placeholder=\"Username\" />\n            <input type=\"password\" id=\"login-pass\" placeholder=\"Password\" />\n            <button onclick=\"doLogin()\">Sign In</button>\n            <div class=\"login-error\" id=\"login-err\"></div>\n        </div>\n    </div>\n\n    <!-- ── Header ─────────────────────────────────── -->\n    <div class=\"header\">\n        <div class=\"header-left\">\n            <h1>⚡ NexEntry</h1>\n            <span id=\"demo-indicator\"></span>\n        </div>\n        <div class=\"header-right\">\n            <div class=\"status-pill\">\n                <div class=\"dot\" id=\"door-dot\"></div>\n                <span id=\"door-label\">Door: --</span>\n            </div>\n            <div class=\"status-pill\">\n                <div class=\"dot green\" id=\"esp-dot\"></div>\n                <span id=\"esp-label\">ESP32: Online</span>\n            </div>\n            <div class=\"status-pill\">\n                <span id=\"esp-time\">--:--:--</span>\n            </div>\n        </div>\n    </div>\n\n    <!-- ── Nav ────────────────────────────────────── -->\n    <div class=\"nav\">\n        <button class=\"nav-btn active\" onclick=\"showPage('live')\">Live Feed</button>\n        <button class=\"nav-btn\" onclick=\"showPage('attendance')\">Attendance</button>\n        <button class=\"nav-btn\" onclick=\"showPage('analytics')\">Analytics</button>\n        <button class=\"nav-btn\" onclick=\"showPage('admin')\">Admin</button>\n    </div>\n\n    <!-- ════════════════════════════════════════════ -->\n    <!-- PAGE: Live Feed                              -->\n    <!-- ════════════════════════════════════════════ -->\n    <div class=\"page active\" id=\"page-live\">\n\n        <div id=\"demo-bar-live\" class=\"demo-bar\" style=\"display:none\">\n            <span>⏱ DEMO MODE — Time is simulated</span>\n            <span id=\"demo-time-display\">--:--</span>\n        </div>\n\n        <div id=\"alert-banner\" class=\"alert-banner\"></div>\n\n        <div class=\"grid-3\" style=\"margin-bottom:16px\">\n            <div class=\"card\">\n                <div class=\"card-title\">Total Today</div>\n                <div class=\"stat-val\" id=\"stat-today\">0</div>\n                <div class=\"stat-label\">tap events</div>\n            </div>\n            <div class=\"card\">\n                <div class=\"card-title\">Currently Inside</div>\n                <div class=\"stat-val\" id=\"stat-inside\">0</div>\n                <div class=\"stat-label\">people</div>\n            </div>\n            <div class=\"card\">\n                <div class=\"card-title\">Late Arrivals Today</div>\n                <div class=\"stat-val\" id=\"stat-late\">0</div>\n                <div class=\"stat-label\">people</div>\n            </div>\n        </div>\n\n        <div class=\"grid-2\">\n            <div class=\"card\">\n                <div class=\"card-title\">\n                    Live Tap Feed\n                    <span style=\"color:var(--text3);font-size:11px\">last 50 events</span>\n                </div>\n                <div class=\"feed-wrap\">\n                    <table>\n                        <thead>\n                            <tr>\n                                <th>Time</th>\n                                <th>Name</th>\n                                <th>Action</th>\n                                <th>Status</th>\n                                <th>Flag</th>\n                            </tr>\n                        </thead>\n                        <tbody id=\"feed-body\"></tbody>\n                    </table>\n                </div>\n            </div>\n\n            <div>\n                <div class=\"card\" style=\"margin-bottom:16px\">\n                    <div class=\"card-title\">Door Control</div>\n                    <div class=\"door-status\" id=\"door-status-text\">--</div>\n                    <div style=\"margin-top:14px;display:flex;gap:10px\">\n                       <button class=\"btn btn-success\" id=\"btn-unlock\">🔓 Unlock</button>\n\t\t       <button class=\"btn btn-danger\"  id=\"btn-lock\">🔒 Lock</button>\n                    </div>\n                </div>\n\n                <div class=\"card\">\n                    <div class=\"card-title\">Alerts</div>\n                    <div class=\"feed-wrap\" style=\"max-height:180px\">\n                        <table>\n                            <thead>\n                                <tr>\n                                    <th>Time</th>\n                                    <th>Type</th>\n                                    <th>UID</th>\n                                </tr>\n                            </thead>\n                            <tbody id=\"alert-body\"></tbody>\n                        </table>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n\n    <!-- ════════════════════════════════════════════ -->\n    <!-- PAGE: Attendance                             -->\n    <!-- ════════════════════════════════════════════ -->\n    <div class=\"page\" id=\"page-attendance\">\n        <div class=\"card\">\n            <div class=\"card-title\">\n                Attendance Log\n                <div style=\"display:flex;gap:8px\">\n                    <input type=\"date\" id=\"filter-date\"\n            style=\"background:var(--surface2);border:1px solid var(--border);\n                   border-radius:6px;color:var(--text);padding:4px 8px;font-size:12px\"\n            onchange=\"loadAttendance()\" />\n                    <button class=\"btn btn-ghost\" onclick=\"exportCSV()\">⬇ Export CSV</button>\n                </div>\n            </div>\n            <div class=\"tbl-wrap\">\n                <table>\n                    <thead>\n                        <tr>\n                            <th>Name</th>\n                            <th>Date</th>\n                            <th>Check In</th>\n                            <th>Check Out</th>\n                            <th>Duration</th>\n                            <th>Status</th>\n                            <th>Late</th>\n                        </tr>\n                    </thead>\n                    <tbody id=\"attendance-body\"></tbody>\n                </table>\n            </div>\n        </div>\n    </div>\n\n    <!-- ════════════════════════════════════════════ -->\n    <!-- PAGE: Analytics                              -->\n    <!-- ════════════════════════════════════════════ -->\n    <div class=\"page\" id=\"page-analytics\">\n        <div class=\"grid-2\">\n            <div class=\"card\">\n                <div class=\"card-title\">Weekly Attendance (last 7 days)</div>\n                <div id=\"weekly-bars\"></div>\n            </div>\n            <div class=\"card\">\n                <div class=\"card-title\">Late Arrivals (last 7 days)</div>\n                <div id=\"late-bars\"></div>\n            </div>\n        </div>\n    </div>\n\n    <!-- ════════════════════════════════════════════ -->\n    <!-- PAGE: Admin                                  -->\n    <!-- ════════════════════════════════════════════ -->\n    <div class=\"page\" id=\"page-admin\" style=\"position:relative\">\n\n        <!-- Admin lock overlay -->\n        <div id=\"admin-lock\">\n            <div class=\"admin-lock-box\">\n                <h3>🔐 Admin Access</h3>\n                <p>Enter admin password to manage cards and settings</p>\n                <input type=\"password\" id=\"admin-pass-input\"\n               placeholder=\"Admin password\"\n               style=\"width:100%;padding:9px 12px;background:var(--surface2);\n                      border:1px solid var(--border);border-radius:8px;\n                      color:var(--text);font-size:13px;outline:none;margin-bottom:10px\" />\n                <button class=\"btn btn-primary\" style=\"width:100%\" onclick=\"unlockAdmin()\">\n          Unlock\n        </button>\n                <div class=\"login-error\" id=\"admin-err\"></div>\n            </div>\n        </div>\n\n        <!-- Admin content (visible after unlock) -->\n        <div class=\"grid-2\" style=\"margin-bottom:16px\">\n\n            <!-- Demo Mode -->\n            <div class=\"card\">\n                <div class=\"card-title\">Demo Mode</div>\n                <div style=\"display:flex;gap:10px;align-items:center;margin-bottom:14px\">\n                    <button class=\"btn btn-warning\" onclick=\"toggleDemo()\">\n            Toggle Demo Mode\n          </button>\n                    <span id=\"demo-status-label\"\n                style=\"font-size:12px;color:var(--text2)\">OFF</span>\n                </div>\n                <div style=\"display:flex;gap:8px;flex-wrap:wrap\">\n                    <button class=\"btn btn-ghost\" onclick=\"addDemoOffset(3600)\">+1 Hour</button>\n                    <button class=\"btn btn-ghost\" onclick=\"addDemoOffset(7200)\">+2 Hours</button>\n                    <button class=\"btn btn-ghost\" onclick=\"addDemoOffset(86400)\">+1 Day</button>\n                    <button class=\"btn btn-ghost\" onclick=\"addDemoOffset(-3600)\">-1 Hour</button>\n                </div>\n            </div>\n\n            <!-- Danger Zone -->\n            <div class=\"card\">\n                <div class=\"card-title\" style=\"color:var(--red)\">Danger Zone</div>\n                <p style=\"font-size:12px;color:var(--text2);margin-bottom:14px\">\n                    Clear all attendance history and reset everyone to OUT.\n                    This cannot be undone.\n                </p>\n                <button class=\"btn btn-danger\" onclick=\"clearHistory()\">\n                     🗑 Clear All History\n                </button>\n                <button class=\"btn btn-warning\" onclick=\"clearDemoRecords()\" style=\"margin-top:10px\">\n                     ⏱ Clear Demo Records\n                </button>\n            </div>\n        </div>\n\n        <!-- Card Management -->\n        <div class=\"card\" style=\"position:relative\">\n            <div class=\"card-title\">Card Management</div>\n\n            <!-- Enroll section -->\n            <div style=\"background:var(--surface2);border-radius:8px;\n                  padding:16px;margin-bottom:16px;border:1px solid var(--border)\">\n                <div style=\"font-size:12px;font-weight:600;\n                    color:var(--text2);margin-bottom:12px\">\n                    ENROLL NEW CARD\n                </div>\n                <div class=\"form-row\">\n                    <div class=\"form-group\">\n                        <label>Scanned UID</label>\n                        <input type=\"text\" id=\"enroll-uid\" placeholder=\"Tap card after starting...\" readonly />\n                    </div>\n                    <div class=\"form-group\">\n                        <label>Name</label>\n                        <input type=\"text\" id=\"enroll-name\" placeholder=\"Full name\" />\n                    </div>\n                    <div class=\"form-group\" style=\"max-width:130px\">\n                        <label>Access</label>\n                        <select id=\"enroll-access\">\n              <option value=\"1\">Whitelisted</option>\n              <option value=\"0\">Blacklisted</option>\n            </select>\n                    </div>\n                    <div class=\"form-group\" style=\"max-width:180px\">\n                        <label>Expiry (blank = permanent)</label>\n                        <input type=\"datetime-local\" id=\"enroll-expiry\" />\n                    </div>\n                </div>\n                <div style=\"display:flex;gap:8px\">\n                    <button class=\"btn btn-primary\"  onclick=\"startEnroll()\">📡 Start Scan</button>\n                    <button class=\"btn btn-success\"  onclick=\"saveEnrolled()\">💾 Save Card</button>\n                    <button class=\"btn btn-ghost\"    onclick=\"stopEnroll()\">✕ Stop</button>\n                </div>\n                <div id=\"enroll-status\" style=\"font-size:12px;color:var(--text2);margin-top:8px\"></div>\n            </div>\n\n            <!-- Registry table -->\n            <div class=\"tbl-wrap\">\n                <table>\n                    <thead>\n                        <tr>\n                            <th>UID</th>\n                            <th>Name</th>\n                            <th>Access</th>\n                            <th>Expiry</th>\n                            <th>Actions</th>\n                        </tr>\n                    </thead>\n                    <tbody id=\"cards-body\"></tbody>\n                </table>\n            </div>\n        </div>\n    </div>\n\n</div><!-- end rfid-root -->\n\n<script>\nconsole.log('Dashboard script loaded');\n// ════════════════════════════════════════════════\n//  Config\n// ════════════════════════════════════════════════\nif (window._rfidDashboardActive) window._rfidDashboardActive();\nvar _killed = false;\nwindow._rfidDashboardActive = function() { _killed = true; };\nvar LOGIN_USER          = 'operator';\nvar LOGIN_PASS          = '12345';\nvar ADMIN_PASS          = '54321';\nvar API                 = window.location.protocol + '//' + window.location.hostname + ':1880';\nvar demoMode            = false;\nvar demoOffsetSeconds   = 0;\nvar _statsDebounceTimer = null;\nvar _statsFetching = false;\nvar demoBaseTime        = 0;\nvar adminUnlocked       = false;\n\n// ════════════════════════════════════════════════\n//  Login\n// ════════════════════════════════════════════════\nfunction doLogin() {\n  var u = document.getElementById('login-user').value.trim();\n  var p = document.getElementById('login-pass').value.trim();\n  if (u === LOGIN_USER && p === LOGIN_PASS) {\n    document.getElementById('login-overlay').classList.add('hidden');\n    init();\n  } else {\n    document.getElementById('login-err').textContent = 'Invalid credentials';\n  }\n}\n\ndocument.getElementById('login-pass').addEventListener('keydown', function(e) {\n  if (e.key === 'Enter') doLogin();\n});\n\n// ════════════════════════════════════════════════\n//  Admin unlock\n// ════════════════════════════════════════════════\nfunction unlockAdmin() {\n  var p = document.getElementById('admin-pass-input').value;\n  if (p === ADMIN_PASS) {\n    adminUnlocked = true;\n    document.getElementById('admin-lock').classList.add('hidden');\n    loadCards();\n  } else {\n    document.getElementById('admin-err').textContent = 'Wrong password';\n  }\n}\n\n// ════════════════════════════════════════════════\n//  Navigation\n// ════════════════════════════════════════════════\nfunction showPage(name) {\n  document.querySelectorAll('.page').forEach(function(p) {\n    p.classList.remove('active');\n  });\n  document.querySelectorAll('.nav-btn').forEach(function(b) {\n    b.classList.remove('active');\n  });\n  document.getElementById('page-' + name).classList.add('active');\n  event.target.classList.add('active');\n\n  if (name === 'attendance') loadAttendance();\n  if (name === 'analytics')  loadAnalytics();\n  if (name === 'admin' && adminUnlocked) loadCards();\n}\n\n// ════════════════════════════════════════════════\n//  Init — called after login\n// ════════════════════════════════════════════════\nfunction init() {\n    // Clear any intervals from previous instances\n    var highestId = setInterval(function(){}, 9999);\n    for (var i = 0; i < highestId; i++) {\n        clearInterval(i);\n    }\n    // Initialize door status to locked on page load\n    updateDoorStatus('LOCKED');\n\n    debouncedStats();\n    \n    setInterval(function() {\n        if (!_killed) debouncedStats();\n    }, 5000);\n\n    setInterval(function() {\n        if (_killed) return;\n        if (demoMode) {\n            updateDemoTimeDisplay();\n        } else {\n            var now = new Date();\n            document.getElementById('esp-time').textContent =\n                now.toLocaleTimeString('en-GB') + ' ' +\n                now.toLocaleDateString('en-GB');\n        }\n    }, 1000);\n}\n\n// ════════════════════════════════════════════════\n//  Node-RED message handler\n// ════════════════════════════════════════════════\nscope.$watch('msg', function(msg) {\n  if (!msg || !msg.payload) return;\n  var p = msg.payload;\n\n  // Live feed update (array from update-feed node)\n  if (p.alertList) {\n    renderAlerts(p.alertList);\n    return;\n  }\n\n  if (Array.isArray(p)) {\n    renderFeed(p);\n    return;\n  }\n\n  // Alert list update\n  if (p.type && (p.type === 'UNKNOWN_CARD' || p.type === 'DOOR_HELD_OPEN')) {\n    // alerts array comes through separately — handled by alert node\n  }\n\n  // Alert array\n  if (Array.isArray(p) && p[0] && p[0].type) {\n    renderAlerts(p);\n    return;\n  }\n\n  // Door event\n  if (p.event) {\n    updateDoorStatus(p.event);\n    return;\n  }\n\n  // ESP32 status heartbeat\n  if (p.uptime !== undefined) {\n    if (!demoMode) {\n      var now = new Date();\n      document.getElementById('esp-time').textContent = \n          now.toLocaleTimeString('en-GB') + ' ' + \n          now.toLocaleDateString('en-GB');\n    }\n    document.getElementById('esp-dot').className = 'dot green';\n    document.getElementById('esp-label').textContent = 'ESP32: Online';\n    if (p.demo) {\n      demoMode = true;\n      updateDemoUI();\n    }\n    return;\n  }\n\n  // Enroll scanned\n  if (p.uid && Object.keys(p).length === 1) {\n    document.getElementById('enroll-uid').value = p.uid;\n    document.getElementById('enroll-status').textContent =\n      '✓ Card scanned: ' + p.uid + ' — fill in name and click Save';\n    return;\n  }\n\n  // Tap event (single)\n  if (p.action) {\n    showTapAlert(p);\n  }\n});\n\n// ════════════════════════════════════════════════\n//  Feed rendering\n// ════════════════════════════════════════════════\nfunction renderFeed(feed) {\n  var tbody = document.getElementById('feed-body');\n  tbody.innerHTML = '';\n  feed.forEach(function(row) {\n    var tr = document.createElement('tr');\n    var actionBadge = row.action === 'CHECK_IN'\n      ? '<span class=\"badge badge-green\">IN</span>'\n      : '<span class=\"badge badge-blue\">OUT</span>';\n    var accessBadge = row.access === 'GRANTED'\n      ? '<span class=\"badge badge-green\">Granted</span>'\n      : '<span class=\"badge badge-red\">Denied</span>';\n    var lateBadge = row.late\n      ? '<span class=\"badge badge-yellow\">⚠ Late</span>' : '';\n    var demoBadge = row.demo\n      ? '<span class=\"badge badge-gray\">DEMO</span>' : '';\n\n    tr.innerHTML =\n      '<td>' + row.time + '</td>' +\n      '<td><strong>' + row.name + '</strong></td>' +\n      '<td>' + actionBadge + '</td>' +\n      '<td>' + accessBadge + '</td>' +\n      '<td>' + lateBadge + demoBadge + '</td>';\n    tbody.appendChild(tr);\n  });\n}\n\nfunction renderAlerts(alerts) {\n  var tbody = document.getElementById('alert-body');\n  tbody.innerHTML = '';\n  alerts.forEach(function(a) {\n    var tr = document.createElement('tr');\n    var badge = a.type === 'UNKNOWN_CARD'\n      ? '<span class=\"badge badge-red\">Unknown Card</span>'\n      : '<span class=\"badge badge-yellow\">Door Held</span>';\n    tr.innerHTML =\n      '<td>' + a.time + '</td>' +\n      '<td>' + badge + '</td>' +\n      '<td style=\"font-family:monospace\">' + a.uid + '</td>';\n    tbody.appendChild(tr);\n  });\n\n  // Show banner for latest alert\n  if (alerts.length > 0) {\n    var banner = document.getElementById('alert-banner');\n    banner.textContent = '⚠ Alert: ' + alerts[0].type + ' — ' + alerts[0].uid;\n    banner.classList.add('show');\n    setTimeout(function() { banner.classList.remove('show'); }, 8000);\n  }\n}\n\nfunction showTapAlert(p) {\n  if (p.access !== 'GRANTED') {\n    var banner = document.getElementById('alert-banner');\n    banner.textContent = '🚫 Access Denied: ' + p.name + ' (' + p.access + ')';\n    banner.classList.add('show');\n    setTimeout(function() { banner.classList.remove('show'); }, 5000);\n  }\n}\n\n// ════════════════════════════════════════════════\n//  Door status\n// ════════════════════════════════════════════════\nfunction updateDoorStatus(event) {\n  var dot   = document.getElementById('door-dot');\n  var label = document.getElementById('door-label');\n  var text  = document.getElementById('door-status-text');\n\n  if (event === 'UNLOCKED') {\n    dot.className   = 'dot green';\n    label.textContent = 'Door: Open';\n    text.textContent  = '🔓 Unlocked';\n    text.style.color  = 'var(--green)';\n  } else if (event === 'LOCKED') {\n    dot.className   = 'dot red';\n    label.textContent = 'Door: Locked';\n    text.textContent  = '🔒 Locked';\n    text.style.color  = 'var(--red)';\n  } else if (event === 'HELD_OPEN') {\n    dot.className   = 'dot yellow';\n    label.textContent = 'Door: Held Open!';\n    text.textContent  = '⚠ Held Open';\n    text.style.color  = 'var(--yellow)';\n  }\n}\n\n// ════════════════════════════════════════════════\n//  Attendance stats (for stat tiles)\n// ════════════════════════════════════════════════\nfunction loadAttendanceStats() {\n    if (_statsFetching) return;\n    _statsFetching = true;\n    fetch(API + '/attendance?_=' + Date.now(), { headers: { 'Cache-Control': 'no-cache' } })\n        .then(function(r) { return r.json(); })\n        .then(function(rows) {\n            var nowMs = Date.now() + (demoMode ? demoOffsetSeconds * 1000 : 0);\n            var todayMidnight = new Date(nowMs);\n            todayMidnight.setHours(0, 0, 0, 0);\n            var todayTs = Math.floor(todayMidnight.getTime() / 1000);\n\n            var todayRows = rows.filter(function(r) {\n                return r.timestamp >= todayTs;\n            });\n            var lateToday = todayRows.filter(function(r) {\n                return r.action === 'CHECK_IN' && r.isLate;\n            });\n\n            var lastAction = {};\n            rows.forEach(function(r) {\n                if (!lastAction[r.uid] ||\n                    r.timestamp > lastAction[r.uid].timestamp) {\n                    lastAction[r.uid] = {\n                        action: r.action,\n                        timestamp: r.timestamp\n                    };\n                }\n            });\n            var insideCount = Object.values(lastAction).filter(function(v) {\n                return v.action === 'CHECK_IN';\n            }).length;\n\n            document.getElementById('stat-today').textContent  = todayRows.length;\n            document.getElementById('stat-inside').textContent = insideCount;\n            document.getElementById('stat-late').textContent   = lateToday.length;\n        })\n        .catch(function(err) {\n            console.error('Stats fetch error:', err);\n        })\n        .finally(function() {\n            _statsFetching = false;\n        });\n}\n\nfunction debouncedStats() {\n    if (_statsDebounceTimer) clearTimeout(_statsDebounceTimer);\n    _statsDebounceTimer = setTimeout(loadAttendanceStats, 300);\n}\n\n// ════════════════════════════════════════════════\n//  Attendance table\n// ════════════════════════════════════════════════\nfunction loadAttendance() {\n  fetch(API + '/attendance')\n    .then(function(r) { return r.json(); })\n    .then(function(rows) {\n      var filterDate = document.getElementById('filter-date').value;\n      var tbody = document.getElementById('attendance-body');\n      tbody.innerHTML = '';\n\n      // Group CHECK_IN / CHECK_OUT pairs by uid+date\n      var sessions = {};\n      rows = rows.filter(function(r) { return r.access === 'GRANTED'; });\n      rows.forEach(function(r) {\n        var d = new Date(r.timestamp * 1000);\n        var dateStr = d.toLocaleDateString('en-GB');\n        if (filterDate) {\n          var fd = new Date(filterDate).toLocaleDateString('en-GB');\n          if (dateStr !== fd) return;\n        }\n        var key = r.uid + '_' + dateStr;\n        if (!sessions[key]) {\n          sessions[key] = { name: r.name, date: dateStr,\n                            checkIn: null, checkOut: null, isLate: false };\n        }\n        if (r.action === 'CHECK_IN') {\n          sessions[key].checkIn = r.timestamp;\n          sessions[key].isLate  = r.isLate;\n        }\n        if (r.action === 'CHECK_OUT') {\n          sessions[key].checkOut = r.timestamp;\n        }\n      });\n\n      var sorted = Object.values(sessions).sort(function(a, b) {\n        return (b.checkIn || 0) - (a.checkIn || 0);\n      });\n\n      sorted.forEach(function(s) {\n        var tr = document.createElement('tr');\n        if (s.isLate) tr.style.background = 'rgba(245,158,11,0.05)';\n\n        var inTime  = s.checkIn\n          ? new Date(s.checkIn  * 1000).toLocaleTimeString('en-GB') : '--';\n        var outTime = s.checkOut\n          ? new Date(s.checkOut * 1000).toLocaleTimeString('en-GB') : '--';\n\n        var duration = '--';\n        if (s.checkIn && s.checkOut) {\n          var secs = s.checkOut - s.checkIn;\n          var h = Math.floor(secs / 3600);\n          var m = Math.floor((secs % 3600) / 60);\n          duration = h + 'h ' + m + 'm';\n        }\n\n        var statusBadge = s.checkOut\n          ? '<span class=\"badge badge-blue\">Complete</span>'\n          : '<span class=\"badge badge-green\">Inside</span>';\n        var lateBadge = s.isLate\n          ? '<span class=\"badge badge-yellow\">Late</span>'\n          : '<span class=\"badge badge-green\">On Time</span>';\n\n        tr.innerHTML =\n          '<td><strong>' + s.name  + '</strong></td>' +\n          '<td>' + s.date     + '</td>' +\n          '<td>' + inTime     + '</td>' +\n          '<td>' + outTime    + '</td>' +\n          '<td>' + duration   + '</td>' +\n          '<td>' + statusBadge + '</td>' +\n          '<td>' + lateBadge  + '</td>';\n        tbody.appendChild(tr);\n      });\n\n      if (sorted.length === 0) {\n        tbody.innerHTML =\n          '<tr><td colspan=\"7\" style=\"text-align:center;color:var(--text3);' +\n          'padding:24px\">No records found</td></tr>';\n      }\n    });\n}\n\n// ════════════════════════════════════════════════\n//  Analytics\n// ════════════════════════════════════════════════\nfunction loadAnalytics() {\n  fetch(API + '/weekly')\n    .then(function(r) { return r.json(); })\n    .then(function(data) {\n      var maxDays = 7;\n      var wBars = document.getElementById('weekly-bars');\n      var lBars = document.getElementById('late-bars');\n      wBars.innerHTML = '';\n      lBars.innerHTML = '';\n\n      if (!data.length) {\n        wBars.innerHTML =\n          '<p style=\"color:var(--text3);font-size:13px\">No data yet</p>';\n        lBars.innerHTML =\n          '<p style=\"color:var(--text3);font-size:13px\">No data yet</p>';\n        return;\n      }\n\n      data.forEach(function(row) {\n        var pct = Math.round((row.days / maxDays) * 100);\n        wBars.innerHTML +=\n          '<div class=\"bar-wrap\">' +\n          '<div class=\"bar-label\"><span>' + row.name + '</span>' +\n          '<span>' + row.days + ' days</span></div>' +\n          '<div class=\"bar-track\"><div class=\"bar-fill\" style=\"width:' +\n          pct + '%\"></div></div></div>';\n\n        var latePct = row.days > 0\n          ? Math.round((row.lateDays / row.days) * 100) : 0;\n        lBars.innerHTML +=\n          '<div class=\"bar-wrap\">' +\n          '<div class=\"bar-label\"><span>' + row.name + '</span>' +\n          '<span>' + row.lateDays + ' late</span></div>' +\n          '<div class=\"bar-track\"><div class=\"bar-fill late\" style=\"width:' +\n          latePct + '%\"></div></div></div>';\n      });\n    });\n}\n\n// ════════════════════════════════════════════════\n//  CSV Export\n// ════════════════════════════════════════════════\nfunction exportCSV() {\n  window.location.href = API + '/export-csv';\n}\n\n// ════════════════════════════════════════════════\n//  MQTT command helper\n// ════════════════════════════════════════════════\nfunction sendCmd(topic, payload) {\nconsole.log('sendCmd called:', topic, JSON.stringify(payload));\nreturn fetch('http://192.168.100.13:1880/cmd', {\nmethod: 'POST',\nheaders: { 'Content-Type': 'application/json' },\nbody: JSON.stringify({ topic: topic, payload: payload })\n})\n.then(function(r) {\nconsole.log('CMD response:', r.status);\nreturn r;\n})\n.catch(function(err) {\nconsole.error('CMD failed:', err);\n});\n}\n\n// ════════════════════════════════════════════════\n//  Door commands\n// ════════════════════════════════════════════════\nfunction remoteDoor(cmd) {\n  sendCmd('access/cmd/door', { cmd: cmd });\n}\n\nvar _doorCmdLock = false;\ndocument.getElementById('btn-unlock').addEventListener('click', function() {\n    if (_doorCmdLock) return;\n    _doorCmdLock = true;\n    remoteDoor('UNLOCK');\n    setTimeout(function() { _doorCmdLock = false; }, 500);\n});\n\ndocument.getElementById('btn-lock').addEventListener('click', function() {\n    if (_doorCmdLock) return;\n    _doorCmdLock = true;\n    remoteDoor('LOCK');\n    setTimeout(function() { _doorCmdLock = false; }, 500);\n});\n\n// ════════════════════════════════════════════════\n//  Demo mode\n// ════════════════════════════════════════════════\n\nfunction updateDemoTimeDisplay() {\n    if (!demoMode) return;\n    var demoNow = new Date(Date.now() + demoOffsetSeconds * 1000);\n    var timeStr = demoNow.toLocaleTimeString('en-GB');\n    var dateStr = demoNow.toLocaleDateString('en-GB');\n    document.getElementById('esp-time').textContent = timeStr + ' ' + dateStr;\n    document.getElementById('demo-time-display').textContent = timeStr + ' ' + dateStr;\n}\n\nfunction toggleDemo() {\n    demoMode = !demoMode;\n    if (!demoMode) demoOffsetSeconds = 0;\n    sendCmd('access/cmd/time', {\n        mode: demoMode ? 'DEMO' : 'REAL',\n        offsetSeconds: 0\n    });\n    updateDemoUI();\n    if (!demoMode) {\n      // Immediately restore real time\n      var now = new Date();\n      document.getElementById('esp-time').textContent = \n        now.toLocaleTimeString('en-GB');\n    }\n    if (demoMode) updateDemoTimeDisplay();\n}\n\nfunction addDemoOffset(seconds) {\n  if (!demoMode) {\n    alert('Enable Demo Mode first');\n    return;\n  }\n  demoOffsetSeconds += seconds;\n  sendCmd('access/cmd/time', { mode: 'DEMO', offsetSeconds: seconds });\n  updateDemoTimeDisplay();\n}\n\nfunction updateDemoUI() {\n  var label = document.getElementById('demo-status-label');\n  var bar   = document.getElementById('demo-bar-live');\n  var ind   = document.getElementById('demo-indicator');\n  if (demoMode) {\n    label.textContent      = 'ON';\n    label.style.color      = 'var(--yellow)';\n    bar.style.display      = 'flex';\n    ind.textContent        = '⏱ DEMO';\n    ind.style.color        = 'var(--yellow)';\n  } else {\n    label.textContent      = 'OFF';\n    label.style.color      = 'var(--text2)';\n    bar.style.display      = 'none';\n    ind.textContent        = '';\n  }\n}\n\n// ════════════════════════════════════════════════\n//  Clear history\n// ════════════════════════════════════════════════\nfunction clearHistory() {\n  if (!confirm('Clear ALL attendance history? This cannot be undone.')) return;\n  fetch(API + '/clear-history', { method: 'POST' })\n    .then(function() {\n      document.getElementById('feed-body').innerHTML = '';\n      document.getElementById('attendance-body').innerHTML = '';\n      debouncedStats();\n      alert('History cleared.');\n    });\n}\n\nfunction clearDemoRecords() {\n    if (!confirm('Clear all demo attendance records?')) return;\n    fetch(API + '/clear-demo', { method: 'POST' })\n        .then(function() {\n            loadAttendanceStats();\n            alert('Demo records cleared.');\n        });\n}\n\n// ════════════════════════════════════════════════\n//  Card Management\n// ════════════════════════════════════════════════\nfunction loadCards() {\n  fetch(API + '/cards')\n    .then(function(r) { return r.json(); })\n    .then(function(cards) {\n      var tbody = document.getElementById('cards-body');\n      tbody.innerHTML = '';\n\n      if (!cards.length) {\n        tbody.innerHTML =\n          '<tr><td colspan=\"5\" style=\"text-align:center;' +\n          'color:var(--text3);padding:24px\">No cards enrolled yet</td></tr>';\n        return;\n      }\n\n      cards.forEach(function(card) {\n        var tr = document.createElement('tr');\n        var accessBadge = card.whitelisted\n          ? '<span class=\"badge badge-green\">Whitelisted</span>'\n          : '<span class=\"badge badge-red\">Blacklisted</span>';\n        var expiry = card.tempExpiry\n          ? new Date(card.tempExpiry * 1000).toLocaleString('en-GB')\n          : '<span style=\"color:var(--text3)\">Permanent</span>';\n\n        tr.innerHTML =\n          '<td style=\"font-family:monospace\">' + card.uid + '</td>' +\n          '<td><strong>' + card.name + '</strong></td>' +\n          '<td>' + accessBadge + '</td>' +\n          '<td>' + expiry + '</td>' +\n          '<td>' +\n          '<button class=\"btn btn-ghost\" style=\"padding:4px 10px;font-size:11px;margin-right:6px\" ' +\n          'onclick=\"editCard(\\'' + card.uid + '\\',\\'' + card.name + '\\',' +\n          card.whitelisted + ',' + card.tempExpiry + ')\">Edit</button>' +\n          '<button class=\"btn btn-danger\" style=\"padding:4px 10px;font-size:11px\" ' +\n          'onclick=\"deleteCard(\\'' + card.uid + '\\',\\'' + card.name + '\\')\">Delete</button>' +\n          '</td>';\n        tbody.appendChild(tr);\n      });\n    });\n}\n\nfunction startEnroll() {\n  sendCmd('access/cmd/enroll', { cmd: 'START' });\n  document.getElementById('enroll-status').textContent =\n    '📡 Enrollment active — tap a card on the reader...';\n  document.getElementById('enroll-uid').value = '';\n}\n\nfunction stopEnroll() {\n  sendCmd('access/cmd/enroll', { cmd: 'STOP' });\n  document.getElementById('enroll-status').textContent = '';\n  document.getElementById('enroll-uid').value = '';\n  document.getElementById('enroll-name').value = '';\n}\n\nfunction saveEnrolled() {\n  var uid    = document.getElementById('enroll-uid').value.trim();\n  var name   = document.getElementById('enroll-name').value.trim();\n  var access = document.getElementById('enroll-access').value === '1';\n  var expiry = document.getElementById('enroll-expiry').value;\n  var tempExpiry = expiry ? Math.floor(new Date(expiry).getTime() / 1000) : 0;\n\n  if (!uid)  { alert('No card scanned yet'); return; }\n  if (!name) { alert('Enter a name');        return; }\n\n  var payload = {\n    uid: uid, name: name,\n    whitelisted: access, tempExpiry: tempExpiry\n  };\n\n  // Send to ESP32\n  sendCmd('access/cmd/enroll/save', payload);\n\n  // Mirror to SQLite\n  fetch(API + '/cmd', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      topic: 'access/cmd/enroll/save',\n      payload: payload\n    })\n  });\n\n  // Also save to cards table directly via a small workaround:\n  // We'll use the /cmd endpoint but the cards table is updated\n  // by a separate flow node listening on enroll/save topic\n  document.getElementById('enroll-status').textContent =\n    '✓ Saved: ' + name + ' (' + uid + ')';\n\n  setTimeout(function() {\n    stopEnroll();\n    loadCards();\n  }, 1500);\n}\n\nfunction editCard(uid, name, whitelisted, tempExpiry) {\n  var newName = prompt('Name:', name);\n  if (newName === null) return;\n  var wl = confirm('Whitelisted? (OK = Yes, Cancel = Blacklisted)');\n  var expiryInput = prompt(\n    'Expiry Unix timestamp (0 = permanent):', tempExpiry);\n  if (expiryInput === null) return;\n\n  sendCmd('access/cmd/card/edit', {\n    uid: uid,\n    name: newName,\n    whitelisted: wl,\n    tempExpiry: parseInt(expiryInput) || 0\n  });\n\n  setTimeout(loadCards, 800);\n}\n\nfunction deleteCard(uid, name) {\n  if (!confirm('Delete card for ' + name + '? This cannot be undone.')) return;\n  sendCmd('access/cmd/card/delete', { uid: uid });\n  setTimeout(loadCards, 800);\n}\n</script>\n",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 860,
+        "y": 200,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a3235c2807fd14aa",
+        "type": "mqtt in",
+        "z": "4ceb564ba5b1c485",
+        "name": "",
+        "topic": "access/cmd/enroll/save",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "1889ade0a1e00edf",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 220,
+        "y": 500,
+        "wires": [
+            [
+                "5fca2e34bf37f084"
+            ]
+        ]
+    },
+    {
+        "id": "c513eb9fcf81bb3b",
+        "type": "sqlite",
+        "z": "4ceb564ba5b1c485",
+        "mydb": "sqlite-db",
+        "sqlquery": "msg.topic",
+        "sql": "INSERT OR REPLACE INTO cards (uid, name, whitelisted, tempExpiry) VALUES (?, ?, ?, ?)",
+        "name": "Cards table sync",
+        "x": 750,
+        "y": 500,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "5fca2e34bf37f084",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Cards table sync",
+        "func": "var p = (typeof msg.payload === 'string')\n    ? JSON.parse(msg.payload) : msg.payload;\nvar uid  = (p.uid  || '').replace(/'/g, \"''\");\nvar name = (p.name || '').replace(/'/g, \"''\");\nmsg.topic = \"INSERT OR REPLACE INTO cards (uid, name, whitelisted, tempExpiry) VALUES ('\" + uid + \"','\" + name + \"',\" + (p.whitelisted ? 1 : 0) + \",\" + (p.tempExpiry || 0) + \")\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 490,
+        "y": 500,
+        "wires": [
+            [
+                "c513eb9fcf81bb3b"
+            ]
+        ]
+    },
+    {
+        "id": "0856443d3b3c11c8",
+        "type": "mqtt in",
+        "z": "4ceb564ba5b1c485",
+        "name": "",
+        "topic": "access/cmd/card/edit",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "1889ade0a1e00edf",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 220,
+        "y": 560,
+        "wires": [
+            [
+                "9b974a75f1dfc587"
+            ]
+        ]
+    },
+    {
+        "id": "9b974a75f1dfc587",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Card edits",
+        "func": "var p = (typeof msg.payload === 'string')\n    ? JSON.parse(msg.payload) : msg.payload;\nvar name = (p.name || '').replace(/'/g, \"''\");\nvar uid  = (p.uid  || '').replace(/'/g, \"''\");\nmsg.topic = \"UPDATE cards SET name='\" + name + \"', whitelisted=\" + (p.whitelisted ? 1 : 0) + \", tempExpiry=\" + (p.tempExpiry || 0) + \" WHERE uid='\" + uid + \"'\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 490,
+        "y": 560,
+        "wires": [
+            [
+                "8c48335812153704"
+            ]
+        ]
+    },
+    {
+        "id": "8c48335812153704",
+        "type": "sqlite",
+        "z": "4ceb564ba5b1c485",
+        "mydb": "sqlite-db",
+        "sqlquery": "msg.topic",
+        "sql": "",
+        "name": "Card edits",
+        "x": 730,
+        "y": 560,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "9b34a9d4e176507d",
+        "type": "mqtt in",
+        "z": "4ceb564ba5b1c485",
+        "name": "",
+        "topic": "access/cmd/card/delete",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "1889ade0a1e00edf",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 240,
+        "y": 620,
+        "wires": [
+            [
+                "56f1b19004777daf"
+            ]
+        ]
+    },
+    {
+        "id": "56f1b19004777daf",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Card deletes",
+        "func": "var p = (typeof msg.payload === 'string')\n    ? JSON.parse(msg.payload) : msg.payload;\nvar uid = (p.uid || '').replace(/'/g, \"''\");\nmsg.topic = \"DELETE FROM cards WHERE uid='\" + uid + \"'\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 490,
+        "y": 620,
+        "wires": [
+            [
+                "a5a0436b474a697d"
+            ]
+        ]
+    },
+    {
+        "id": "a5a0436b474a697d",
+        "type": "sqlite",
+        "z": "4ceb564ba5b1c485",
+        "mydb": "sqlite-db",
+        "sqlquery": "msg.topic",
+        "sql": "",
+        "name": "Card deletes",
+        "x": 730,
+        "y": 620,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "f0a5c6919373fc6b",
+        "type": "sqlite",
+        "z": "4ceb564ba5b1c485",
+        "mydb": "sqlite-db",
+        "sqlquery": "msg.topic",
+        "sql": "{{{payload}}}",
+        "name": "Save Tap",
+        "x": 640,
+        "y": 100,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "2a02e5f7f4991603",
+        "type": "http in",
+        "z": "4ceb564ba5b1c485",
+        "name": "POST /clear-demo",
+        "url": "/clear-demo",
+        "method": "post",
+        "upload": false,
+        "skipBodyParsing": false,
+        "swaggerDoc": "",
+        "x": 210,
+        "y": 1020,
+        "wires": [
+            [
+                "f4a6543f5f2230ab"
+            ]
+        ]
+    },
+    {
+        "id": "f4a6543f5f2230ab",
+        "type": "function",
+        "z": "4ceb564ba5b1c485",
+        "name": "Clear Demo",
+        "func": "msg.topic = \"DELETE FROM attendance WHERE demo=1\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 430,
+        "y": 1020,
+        "wires": [
+            [
+                "751ac5585776d141"
+            ]
+        ]
+    },
+    {
+        "id": "751ac5585776d141",
+        "type": "sqlite",
+        "z": "4ceb564ba5b1c485",
+        "mydb": "sqlite-db",
+        "sqlquery": "msg.topic",
+        "sql": "",
+        "name": "Clear Demo",
+        "x": 630,
+        "y": 1020,
+        "wires": [
+            [
+                "de67221831879b68"
+            ]
+        ]
+    },
+    {
+        "id": "de67221831879b68",
+        "type": "http response",
+        "z": "4ceb564ba5b1c485",
+        "name": "Response",
+        "statusCode": "200",
+        "headers": {},
+        "x": 860,
+        "y": 1020,
+        "wires": []
+    },
+    {
+        "id": "sqlite-db",
+        "type": "sqlitedb",
+        "db": "/home/razi/access_control.db",
+        "mode": "RWC"
+    },
+    {
+        "id": "1889ade0a1e00edf",
+        "type": "mqtt-broker",
+        "name": "Mosquitto Rpi",
+        "broker": "192.168.100.13",
+        "port": "8883",
+        "tls": "4573c4a09abbd839",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": true,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "ui-group-main",
+        "type": "ui_group",
+        "name": "Main",
+        "tab": "ui-tab-main",
+        "order": 1,
+        "disp": false,
+        "width": "24"
+    },
+    {
+        "id": "4573c4a09abbd839",
+        "type": "tls-config",
+        "name": "RPi TLS",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "rpi_ca.crt",
+        "servername": "",
+        "verifyservercert": false,
+        "alpnprotocol": ""
+    },
+    {
+        "id": "ui-tab-main",
+        "type": "ui_tab",
+        "name": "Dashboard",
+        "icon": "dashboard",
+        "order": 1
+    },
+    {
+        "id": "0511b937e3cf0308",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-node-sqlite": "2.0.1",
+            "node-red-dashboard": "3.6.6"
+        }
+    }
+]
