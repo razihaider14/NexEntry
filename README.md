@@ -232,6 +232,9 @@ Flash to ESP32. On first boot, all cards must be enrolled via the dashboard.
 
 ## 📊 Dashboard Screenshots
 
+### Login Overlay
+![Login Overlay](Images/LoginOverlay.png)
+
 ### Live Feed
 ![Live Feed](Images/DashboardLiveFeed.png)
 
@@ -249,6 +252,9 @@ Flash to ESP32. On first boot, all cards must be enrolled via the dashboard.
 
 ### Admin Access
 ![Admin Access](Images/DashboardAdminAccess.png)
+
+### Admin Login Overlay
+![Admin Login Overlay](Images/AdminLoginOverlay.png)
 
 ---
 
