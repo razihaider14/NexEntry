@@ -123,5 +123,4 @@ namespace Feedback {
             digitalWrite(PIN_BUZZER, LOW);
         }
     }
-
 }

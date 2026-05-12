@@ -273,4 +273,4 @@ Flash to ESP32. On first boot, all cards must be enrolled via the dashboard.
 
 ##  Related Projects
 
-- [Sentinel](https://github.com/razihaider14/Sentinel) — ESP32 smart lock with TOTP, TLS MQTT, and Node-RED dashboard (predecessor to NexEntry)
+- [Sentinel](https://github.com/razihaider14/Sentinel) — ESP32 smart lock with TOTP, TLS MQTT, and Node-RED dashboard (predecessor to NexEntry) 

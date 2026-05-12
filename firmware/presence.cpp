@@ -143,5 +143,4 @@ namespace Presence {
         saveState();
         Serial.println("[PRESENCE] All presence reset to OUT");
     }
-
 }

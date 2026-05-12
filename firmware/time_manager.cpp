@@ -75,5 +75,4 @@ namespace TimeManager {
     bool isDemoMode() {
         return _demoMode;
     }
-
 } 

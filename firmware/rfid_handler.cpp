@@ -142,5 +142,4 @@ namespace RFID {
     bool isEnrollMode() {
         return _enrollMode;
     }
-
 } 

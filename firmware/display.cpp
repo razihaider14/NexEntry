@@ -114,5 +114,4 @@ namespace Display {
         _lcd.setCursor(0, 1);
         _lcd.print(buf);
     }
-
 }

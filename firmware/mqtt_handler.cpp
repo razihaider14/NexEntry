@@ -271,5 +271,4 @@ namespace MQTT {
         _client.publish(TOPIC_ENROLL_SCANNED, buf);
         Serial.printf("[MQTT] Enroll scanned: %s\n", uid);
     }
-
 } 
