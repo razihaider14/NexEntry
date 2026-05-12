@@ -1,7 +1,3 @@
-// ============================================================
-//  mqtt_handler.cpp
-// ============================================================
-
 #include "mqtt_handler.h"
 #include "config.h"
 #include "rfid_handler.h"
@@ -21,12 +17,9 @@ namespace MQTT {
     static PubSubClient     _client(_wifiClient);
     static void (*_onConnectCallback)() = nullptr;
 
-    // ── Forward declarations ─────────────────────────────────
     static void _onMessage(char* topic, byte* payload, unsigned int length);
     static void _reconnect();
     static void _subscribeAll();
-
-    // ── Handlers (one per incoming topic) ────────────────────
 
     static void _handleEnroll(const JsonDocument& doc) {
         const char* cmd = doc["cmd"];
@@ -137,10 +130,7 @@ namespace MQTT {
         }
     }
 
-    // ── Message Router ───────────────────────────────────────
-
     static void _onMessage(char* topic, byte* payload, unsigned int length) {
-        // Copy payload to null-terminated string
         char msg[512];
         length = min(length, (unsigned int)511);
         memcpy(msg, payload, length);
@@ -164,8 +154,6 @@ namespace MQTT {
         else if (strcmp(topic, TOPIC_CMD_PRESENCE_RESET) == 0) _handlePresenceReset(doc);
     }
 
-    // ── Subscriptions ────────────────────────────────────────
-
     static void _subscribeAll() {
         _client.subscribe(TOPIC_CMD_ENROLL);
         _client.subscribe(TOPIC_CMD_ENROLL_SAVE);
@@ -176,8 +164,6 @@ namespace MQTT {
         _client.subscribe(TOPIC_CMD_PRESENCE_RESET);
         Serial.println("[MQTT] Subscribed to all command topics");
     }
-
-    // ── Reconnect ────────────────────────────────────────────
 
     static void _reconnect() {
         while (!_client.connected()) {
@@ -196,8 +182,6 @@ namespace MQTT {
             }
         }
     }
-
-    // ── Public ───────────────────────────────────────────────
 
     void init(void (*onConnectCallback)()) {
         _onConnectCallback = onConnectCallback;
@@ -218,8 +202,6 @@ namespace MQTT {
         return _client.connected();
     }
 
-    // ── Publishers ───────────────────────────────────────────
-
     void publishTap(const AccessResult& result) {
         StaticJsonDocument<256> doc;
         doc["uid"]       = result.uid;
@@ -230,7 +212,6 @@ namespace MQTT {
         doc["isLate"]    = result.isLate;
         doc["demo"]      = TimeManager::isDemoMode();
 
-        // Include checkInTime on CHECK_OUT so Node-RED can calculate duration
         if (strcmp(result.action, "CHECK_OUT") == 0) {
             int idx = result.cardIndex;
             if (idx >= 0) {
@@ -291,4 +272,4 @@ namespace MQTT {
         Serial.printf("[MQTT] Enroll scanned: %s\n", uid);
     }
 
-} // namespace MQTT
+} 

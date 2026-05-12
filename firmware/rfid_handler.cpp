@@ -1,7 +1,3 @@
-// ============================================================
-//  rfid_handler.cpp
-// ============================================================
-
 #include "rfid_handler.h"
 #include "config.h"
 #include <SPI.h>
@@ -16,8 +12,6 @@ namespace RFID {
     static uint8_t      _cardCount   = 0;
     static bool         _enrollMode  = false;
 
-    // ── Helpers ─────────────────────────────────────────────
-
     static String _bytesToUID(byte* buf, byte len) {
         String uid = "";
         for (byte i = 0; i < len; i++) {
@@ -28,16 +22,12 @@ namespace RFID {
         return uid;
     }
 
-    // ── Public ───────────────────────────────────────────────
-
     void init() {
         SPI.begin();
         _rfid.PCD_Init();
         loadRegistry();
         Serial.printf("[RFID] Init OK — %d card(s) in registry\n", _cardCount);
     }
-
-    // ── Card Reading ────────────────────────────────────────
 
     bool cardPresent() {
         return _rfid.PICC_IsNewCardPresent() && _rfid.PICC_ReadCardSerial();
@@ -49,8 +39,6 @@ namespace RFID {
         _rfid.PCD_StopCrypto1();
         return uid;
     }
-
-    // ── Registry Lookup ─────────────────────────────────────
 
     int lookupCard(const String& uid) {
         for (uint8_t i = 0; i < _cardCount; i++) {
@@ -67,15 +55,12 @@ namespace RFID {
         return _cardCount;
     }
 
-    // ── Registry Editing ────────────────────────────────────
-
     bool addCard(const CardRecord& record) {
         if (_cardCount >= MAX_CARDS) {
             Serial.println("[RFID] Registry full, cannot add card");
             return false;
         }
 
-        // Prevent duplicate UIDs
         if (lookupCard(String(record.uid)) != -1) {
             Serial.printf("[RFID] Card %s already exists, use edit instead\n", record.uid);
             return false;
@@ -88,10 +73,7 @@ namespace RFID {
         return true;
     }
 
-    bool editCard(const String& uid,
-                  const char* newName,
-                  bool whitelisted,
-                  uint32_t tempExpiry) {
+    bool editCard(const String& uid, const char* newName, bool whitelisted, uint32_t tempExpiry) {
 
         int idx = lookupCard(uid);
         if (idx == -1) {
@@ -105,8 +87,7 @@ namespace RFID {
         _registry[idx].tempExpiry  = tempExpiry;
 
         saveRegistry();
-        Serial.printf("[RFID] Card edited: %s → name=%s whitelist=%d expiry=%u\n",
-                      uid.c_str(), newName, whitelisted, tempExpiry);
+        Serial.printf("[RFID] Card edited: %s → name=%s whitelist=%d expiry=%u\n", uid.c_str(), newName, whitelisted, tempExpiry);
         return true;
     }
 
@@ -117,13 +98,11 @@ namespace RFID {
             return false;
         }
 
-        // Shift all entries after idx one position left
         for (uint8_t i = idx; i < _cardCount - 1; i++) {
             _registry[i] = _registry[i + 1];
         }
         _cardCount--;
 
-        // Clear the last slot to avoid stale data
         memset(&_registry[_cardCount], 0, sizeof(CardRecord));
 
         saveRegistry();
@@ -131,10 +110,8 @@ namespace RFID {
         return true;
     }
 
-    // ── NVS Persistence ─────────────────────────────────────
-
     void saveRegistry() {
-        _prefs.begin(NVS_NAMESPACE, false);   // false = read/write
+        _prefs.begin(NVS_NAMESPACE, false); 
         _prefs.putBytes(NVS_KEY_REGISTRY, _registry, sizeof(_registry));
         _prefs.putUChar("card_count", _cardCount);
         _prefs.end();
@@ -142,7 +119,7 @@ namespace RFID {
     }
 
     void loadRegistry() {
-        _prefs.begin(NVS_NAMESPACE, true);    // true = read only
+        _prefs.begin(NVS_NAMESPACE, true);  
         size_t len = _prefs.getBytesLength(NVS_KEY_REGISTRY);
 
         if (len == sizeof(_registry)) {
@@ -150,15 +127,12 @@ namespace RFID {
             _cardCount = _prefs.getUChar("card_count", 0);
             Serial.printf("[RFID] Registry loaded from NVS (%d cards)\n", _cardCount);
         } else {
-            // First boot or NVS was wiped — start empty
             memset(_registry, 0, sizeof(_registry));
             _cardCount = 0;
             Serial.println("[RFID] No registry in NVS — starting fresh");
         }
         _prefs.end();
     }
-
-    // ── Enrollment Mode ─────────────────────────────────────
 
     void setEnrollMode(bool on) {
         _enrollMode = on;
@@ -169,4 +143,4 @@ namespace RFID {
         return _enrollMode;
     }
 
-} // namespace RFID
+} 

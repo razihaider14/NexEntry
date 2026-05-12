@@ -1,7 +1,3 @@
-// ============================================================
-//  display.cpp
-// ============================================================
-
 #include "display.h"
 #include "config.h"
 #include <Wire.h>
@@ -10,20 +6,14 @@
 namespace Display {
 
     static LiquidCrystal_I2C _lcd(LCD_ADDRESS, LCD_COLS, LCD_ROWS);
-    static bool _isIdle = false;   // true only when idle screen is active
-                                   // prevents updateTime() writing over other screens
+    static bool _isIdle = false;   
 
-    // ── Helpers ─────────────────────────────────────────────
-
-    // Clears and prints two lines cleanly
-    // Pads with spaces to overwrite any leftover characters
     static void _print(const char* line1, const char* line2) {
         _isIdle = false;
 
         char buf1[LCD_COLS + 1];
         char buf2[LCD_COLS + 1];
 
-        // Left-justify and space-pad to full LCD width
         snprintf(buf1, sizeof(buf1), "%-16s", line1);
         snprintf(buf2, sizeof(buf2), "%-16s", line2);
 
@@ -33,13 +23,10 @@ namespace Display {
         _lcd.print(buf2);
     }
 
-    // Truncates a name to fit LCD width cleanly
     static void _safeName(const char* name, char* out, uint8_t maxLen) {
         strncpy(out, name, maxLen - 1);
         out[maxLen - 1] = '\0';
     }
-
-    // ── Public ───────────────────────────────────────────────
 
     void init() {
         Wire.begin(PIN_LCD_SDA, PIN_LCD_SCL);
@@ -64,7 +51,7 @@ namespace Display {
         _lcd.setCursor(0, 1);
         _lcd.print(buf2);
 
-        _isIdle = true;   // allow updateTime() to write to line 2
+        _isIdle = true;   
     }
 
     void welcome(const char* name) {
@@ -120,8 +107,6 @@ namespace Display {
     }
 
     void updateTime(const String& timeStr) {
-        // Only updates line 2 when idle screen is active
-        // Prevents clock from overwriting tap feedback messages
         if (!_isIdle) return;
 
         char buf[LCD_COLS + 1];
@@ -130,4 +115,4 @@ namespace Display {
         _lcd.print(buf);
     }
 
-} // namespace Display
+}

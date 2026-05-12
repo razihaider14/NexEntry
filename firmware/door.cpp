@@ -1,7 +1,3 @@
-// ============================================================
-//  door.cpp
-// ============================================================
-
 #include "door.h"
 #include "config.h"
 #include <ESP32Servo.h>
@@ -11,19 +7,14 @@ namespace Door {
     static Servo    _servo;
     static bool     _unlocked         = false;
 
-    // Auto-relock state
     static bool     _autoRelockActive = false;
     static bool _autoRelockFired = false;
     static uint32_t _unlockTime       = 0;
     static uint32_t _unlockDuration   = 0;
 
-    // Held-open watchdog state
     static bool     _heldAlertSent    = false;
 
-    // Forward declaration for internal use
     static void _setLocked(bool locked);
-
-    // ── Helpers ─────────────────────────────────────────────
 
     static void _setLocked(bool locked) {
         if (locked) {
@@ -37,11 +28,10 @@ namespace Door {
         }
     }
 
-    // ── Public ───────────────────────────────────────────────
 
     void init() {
         _servo.attach(PIN_DOOR);
-        _setLocked(true);   // always start locked
+        _setLocked(true);   
         Serial.println("[DOOR] Init OK");
     }
 
@@ -50,7 +40,7 @@ namespace Door {
         _autoRelockActive = true;
         _unlockTime       = millis();
         _unlockDuration   = durationMs;
-        _heldAlertSent    = false;   // reset held alert for this new unlock cycle
+        _heldAlertSent    = false;   
         Serial.printf("[DOOR] Unlock for %dms\n", durationMs);
     }
 
@@ -68,7 +58,6 @@ namespace Door {
     void tick() {
         uint32_t now = millis();
 
-        // ── Auto-relock ──────────────────────────────────────
         if (_autoRelockActive && _unlocked) {
             if (now - _unlockTime >= _unlockDuration) {
                 _setLocked(true);
@@ -78,15 +67,10 @@ namespace Door {
             }
         }
 
-        // ── Held-open watchdog ───────────────────────────────
-        // If door is still unlocked beyond DOOR_HELD_OPEN_MS
-        // and we haven't already sent the alert this cycle,
-        // set a flag that mqtt_handler checks next loop
         if (_unlocked && !_heldAlertSent) {
             if (now - _unlockTime >= DOOR_HELD_OPEN_MS) {
                 _heldAlertSent = true;
                 Serial.println("[DOOR] HELD-OPEN threshold exceeded");
-                // mqtt_handler and feedback check this via Door::isHeldOpen()
             }
         }
     }
@@ -103,4 +87,4 @@ namespace Door {
         return false;
     }
 
-} // namespace Door
+}

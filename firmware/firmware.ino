@@ -1,7 +1,3 @@
-// ============================================================
-//  NexEntry  —  Setup, loop, and module orchestration
-// ============================================================
-
 #include <Arduino.h>
 #include <WiFi.h>
 #include <ArduinoOTA.h>
@@ -15,13 +11,10 @@
 #include "presence.h"
 #include "mqtt_handler.h"
 
-// ── Timers ───────────────────────────────────────────────────
 static uint32_t _lastStatusPublish  = 0;
 static uint32_t _lastTimeUpdate     = 0;
-static uint32_t _lastCardTime       = 0;  // debounce tracker
+static uint32_t _lastCardTime       = 0;  
 static String   _lastCardUID        = "";
-
-// ── WiFi ─────────────────────────────────────────────────────
 
 static void connectWiFi() {
     Display::connecting();
@@ -36,8 +29,6 @@ static void connectWiFi() {
 
     Serial.printf(" OK — IP: %s\n", WiFi.localIP().toString().c_str());
 }
-
-// ── OTA ──────────────────────────────────────────────────────
 
 static void initOTA() {
     ArduinoOTA.setHostname("nexentry");
@@ -55,14 +46,9 @@ static void initOTA() {
     Serial.println("[OTA] Ready");
 }
 
-// ── MQTT connect callback ─────────────────────────────────────
-// Fires after every (re)connect — use it to publish initial status
-
 static void onMQTTConnect() {
     MQTT::publishStatus();
 }
-
-// ── Tap handling ─────────────────────────────────────────────
 
 static void handleTap(const String& uid, int cardIndex) {
     // ── Enrollment mode ──────────────────────────────────────
@@ -73,12 +59,10 @@ static void handleTap(const String& uid, int cardIndex) {
         return;
     }
 
-    // ── Normal operation ─────────────────────────────────────
     bool granted = Presence::processTap(cardIndex, uid);
     AccessResult result = Presence::getLastResult();
 
     if (granted) {
-        // CHECK_IN or CHECK_OUT
         if (strcmp(result.action, "CHECK_IN") == 0) {
             Display::welcome(result.name);
         } else {
@@ -90,7 +74,6 @@ static void handleTap(const String& uid, int cardIndex) {
         MQTT::publishDoorEvent("UNLOCKED");
 
     } else {
-        // Denied or unknown
         if (strcmp(result.access, "UNKNOWN") == 0) {
             Display::unknown();
             Feedback::unknown();
@@ -105,22 +88,14 @@ static void handleTap(const String& uid, int cardIndex) {
             MQTT::publishTap(result);
         }
     }
-
-    // Return to idle after feedback settles
-    // feedback functions use delay() so by the time we get here
-    // the LED/beep is already done
     delay(500);
     Display::idle();
 }
-
-// ── Setup ────────────────────────────────────────────────────
 
 void setup() {
     Serial.begin(115200);
     Serial.println("\n=== NexEntry — Booting ===");
 
-    // Order matters — display and feedback first so
-    // we can show status during the rest of init
     Display::init();
     Feedback::init();
     Door::init();
@@ -137,8 +112,6 @@ void setup() {
     Serial.println("=== Boot complete ===\n");
 }
 
-// ── Loop ─────────────────────────────────────────────────────
-
 void loop() {
     ArduinoOTA.handle();
     MQTT::loop();
@@ -150,11 +123,9 @@ void loop() {
 
     uint32_t now = millis();
 
-    // ── Card scan ────────────────────────────────────────────
     if (RFID::cardPresent()) {
         String uid = RFID::readUID();
 
-        // Debounce — ignore same card within DEBOUNCE_MS
         bool sameCard    = (uid == _lastCardUID);
         bool tooSoon     = (now - _lastCardTime) < DEBOUNCE_MS;
 
@@ -166,22 +137,17 @@ void loop() {
         }
     }
 
-    // ── Held-open alert ──────────────────────────────────────
     if (Door::isHeldOpen()) {
         Feedback::doorHeldOn();
         MQTT::publishAlert("DOOR_HELD_OPEN", "");
         MQTT::publishDoorEvent("HELD_OPEN");
-        // isHeldOpen() is a one-shot flag — won't fire again
-        // until next unlock cycle (handled in door.cpp)
     }
 
-    // ── Clock update on LCD ──────────────────────────────────
     if (now - _lastTimeUpdate >= 1000) {
         _lastTimeUpdate = now;
         Display::updateTime(TimeManager::formatted());
     }
 
-    // ── Heartbeat status publish ─────────────────────────────
     if (now - _lastStatusPublish >= STATUS_INTERVAL_MS) {
         _lastStatusPublish = now;
         MQTT::publishStatus();

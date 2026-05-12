@@ -1,7 +1,3 @@
-// ============================================================
-//  presence.cpp
-// ============================================================
-
 #include "presence.h"
 #include "rfid_handler.h"
 #include "time_manager.h"
@@ -14,15 +10,11 @@ namespace Presence {
     static AccessResult _lastResult;
     static Preferences  _prefs;
 
-    // ── Helpers ─────────────────────────────────────────────
-
-    // Checks if a card's temporary access has expired
     static bool _isExpired(const CardRecord& card) {
-        if (card.tempExpiry == 0) return false;          // permanent access
+        if (card.tempExpiry == 0) return false;         
         return TimeManager::now() > card.tempExpiry;
     }
 
-    // Checks if a CHECK_IN timestamp counts as late
     static bool _isLate(uint32_t timestamp) {
         time_t raw = (time_t)timestamp;
         struct tm* t = localtime(&raw);
@@ -31,11 +23,7 @@ namespace Presence {
         return false;
     }
 
-    // Builds a denied AccessResult cleanly
-    static void _buildDenied(int cardIndex,
-                              const String& uid,
-                              const char* name,
-                              const char* reason) {
+    static void _buildDenied(int cardIndex, const String& uid, const char* name, const char* reason) {
         _lastResult.cardIndex = cardIndex;
         strncpy(_lastResult.uid,    uid.c_str(), sizeof(_lastResult.uid)    - 1);
         strncpy(_lastResult.name,   name,        sizeof(_lastResult.name)   - 1);
@@ -49,8 +37,6 @@ namespace Presence {
         _lastResult.isLate    = false;
     }
 
-    // ── Public ───────────────────────────────────────────────
-
     void init() {
         memset(_state,      0, sizeof(_state));
         memset(&_lastResult, 0, sizeof(_lastResult));
@@ -61,7 +47,6 @@ namespace Presence {
     bool processTap(int cardIndex, const String& uid) {
         uint32_t now = TimeManager::now();
 
-        // ── Unknown card ────────────────────────────────────
         if (cardIndex == -1) {
             _buildDenied(-1, uid, "Unknown", "UNKNOWN");
             Serial.printf("[PRESENCE] Unknown card: %s\n", uid.c_str());
@@ -70,21 +55,18 @@ namespace Presence {
 
         CardRecord card = RFID::getCard(cardIndex);
 
-        // ── Blacklisted ──────────────────────────────────────
         if (!card.whitelisted) {
             _buildDenied(cardIndex, uid, card.name, "DENIED_BLACKLIST");
             Serial.printf("[PRESENCE] Blacklisted: %s\n", card.name);
             return false;
         }
 
-        // ── Temporary access expired ─────────────────────────
         if (_isExpired(card)) {
             _buildDenied(cardIndex, uid, card.name, "DENIED_EXPIRED");
             Serial.printf("[PRESENCE] Expired access: %s\n", card.name);
             return false;
         }
 
-        // ── Access granted — toggle IN/OUT ───────────────────
         bool wasInside = _state[cardIndex].isInside;
         bool nowInside = !wasInside;
 
@@ -92,12 +74,8 @@ namespace Presence {
 
         if (nowInside) {
             _state[cardIndex].checkInTime = now;
-        } else {
-            // Checking out — preserve checkInTime for duration
-            // calculation in Node-RED, clear it after building result
-        }
+        } 
 
-        // Build result
         _lastResult.cardIndex = cardIndex;
         strncpy(_lastResult.uid,  uid.c_str(), sizeof(_lastResult.uid)  - 1);
         strncpy(_lastResult.name, card.name,   sizeof(_lastResult.name) - 1);
@@ -111,7 +89,6 @@ namespace Presence {
             strncpy(_lastResult.action, "CHECK_OUT", sizeof(_lastResult.action) - 1);
             _lastResult.isLate = false;
 
-            // Clear checkInTime now that checkout is recorded
             _state[cardIndex].checkInTime = 0;
         }
 
@@ -122,11 +99,7 @@ namespace Presence {
 
         saveState();
 
-        Serial.printf("[PRESENCE] %s — %s (%s)%s\n",
-                      _lastResult.action,
-                      card.name,
-                      uid.c_str(),
-                      _lastResult.isLate ? " [LATE]" : "");
+        Serial.printf("[PRESENCE] %s — %s (%s)%s\n", _lastResult.action, card.name, uid.c_str(), _lastResult.isLate ? " [LATE]" : "");
 
         return true;
     }
@@ -144,8 +117,6 @@ namespace Presence {
         if (cardIndex < 0 || cardIndex >= MAX_CARDS) return 0;
         return _state[cardIndex].checkInTime;
     }
-
-    // ── NVS Persistence ─────────────────────────────────────
 
     void saveState() {
         _prefs.begin(NVS_NAMESPACE, false);
@@ -173,4 +144,4 @@ namespace Presence {
         Serial.println("[PRESENCE] All presence reset to OUT");
     }
 
-} // namespace Presence
+}

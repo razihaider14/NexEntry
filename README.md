@@ -1,4 +1,4 @@
-# ⚡ NexEntry
+#  NexEntry
 ### RFID Access Control & Presence Management System
 
 > A production-grade IoT access control system built on ESP32 and Raspberry Pi, featuring real-time attendance tracking, a live analytics dashboard, multi-layer admin security, and a full demo mode for showcasing.
@@ -7,15 +7,15 @@
 
 ---
 
-## 📌 Overview
+##  Overview
 
-NexEntry is a complete RFID-based access control and presence management system. Each person is assigned a MiFare Classic RFID card. When they tap in or out, the system records their attendance in real time, controls a servo door lock, and displays live analytics on a Node-RED dashboard — all over MQTT with TLS encryption.
+NexEntry is a complete RFID-based access control and presence management system. Each person is assigned a MiFare Classic RFID card. When they tap in or out, the system records their attendance in real time, controls a servo door lock, and displays live analytics on a Node-RED dashboard; all over MQTT with TLS encryption.
 
 Built as a showcase-ready IoT project, NexEntry includes a **Demo Mode** that lets you simulate time progression during presentations, so every feature can be demonstrated without waiting for real-world time to pass.
 
 ---
 
-## ✨ Features
+##  Features
 
 ### Access Control
 - RFID card tap → instant IN/OUT toggle
@@ -62,7 +62,7 @@ Built as a showcase-ready IoT project, NexEntry includes a **Demo Mode** that le
 
 ---
 
-## 🔧 Hardware
+##  Hardware
 
 | Component | Details |
 |---|---|
@@ -79,7 +79,7 @@ Built as a showcase-ready IoT project, NexEntry includes a **Demo Mode** that le
 
 ---
 
-## 📐 Wiring
+##  Wiring
 
 | RC522 Pin | ESP32 GPIO |
 |---|---|
@@ -106,7 +106,7 @@ Built as a showcase-ready IoT project, NexEntry includes a **Demo Mode** that le
 
 ---
 
-## 🗂️ Project Structure
+##  Project Structure
 
 ```
 NexEntry/
@@ -129,16 +129,16 @@ NexEntry/
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    ESP32                            │
-│  RC522 → rfid_handler → presence (state machine)   │
+│  RC522 → rfid_handler → presence (state machine)    │
 │       → feedback (LED/buzzer)                       │
-│       → display (LCD)                              │
-│       → door (servo)                               │
-│       → mqtt_handler → MQTT over TLS               │
+│       → display (LCD)                               │
+│       → door (servo)                                │
+│       → mqtt_handler → MQTT over TLS                │
 └───────────────────────┬─────────────────────────────┘
                         │ MQTT TLS (port 8883)
 ┌───────────────────────▼─────────────────────────────┐
@@ -157,7 +157,7 @@ NexEntry/
 
 ---
 
-## 📡 MQTT Topics
+##  MQTT Topics
 
 | Topic | Direction | Purpose |
 |---|---|---|
@@ -176,7 +176,7 @@ NexEntry/
 
 ---
 
-## 🚀 Setup
+##  Setup
 
 ### 1. Mosquitto (Raspberry Pi)
 ```bash
@@ -195,10 +195,13 @@ npm install node-red-dashboard node-red-contrib-ui-led node-red-node-sqlite
 ```
 Import `Dashboard/NodeRedFlow.json` via Node-RED editor → hamburger menu → Import.
 
-Configure the MQTT broker node with your Pi's IP, port 8883, and TLS certificate.
+Configure the MQTT broker node with your Pi's IP, port 8883, and TLS certificate. Also, in the `<script>`  in "Main Dashboard" node (about line number **1176**), place your Raspberry Pi's ip here:
+```html
+return fetch('http://ip:1880/cmd' {....}) 
+```
 
 ### 3. ESP32 Firmware
-Open `firmware/firmware.ino` in Arduino IDE. Fill in `config.h`:
+Open `firmware` in Arduino IDE. Fill in `config.h`:
 ```cpp
 #define WIFI_SSID       "your_ssid"
 #define WIFI_PASSWORD   "your_password"
@@ -222,7 +225,7 @@ Required libraries (Arduino Library Manager):
 Flash to ESP32. On first boot, all cards must be enrolled via the dashboard.
 
 ### 4. Card Enrollment
-1. Open dashboard → `http://your_pi_ip:1880/ui`
+1. Open dashboard → `http://ip:1880/ui`
 2. Login: `operator` / `12345`
 3. Go to Admin tab → enter `54321`
 4. Click **Start Scan** → tap card → enter name → click **Save Card**
@@ -230,7 +233,7 @@ Flash to ESP32. On first boot, all cards must be enrolled via the dashboard.
 
 ---
 
-## 📊 Dashboard Screenshots
+##  Dashboard Screenshots
 
 ### Login Overlay
 ![Login Overlay](Images/LoginOverlay.png)
@@ -258,7 +261,7 @@ Flash to ESP32. On first boot, all cards must be enrolled via the dashboard.
 
 ---
 
-## 🛠️ Built With
+##  Built With
 
 - **ESP32** — firmware in C++ (Arduino framework)
 - **Node-RED** — flow-based backend + dashboard
@@ -268,6 +271,6 @@ Flash to ESP32. On first boot, all cards must be enrolled via the dashboard.
 
 ---
 
-## 🔗 Related Projects
+##  Related Projects
 
 - [Sentinel](https://github.com/razihaider14/Sentinel) — ESP32 smart lock with TOTP, TLS MQTT, and Node-RED dashboard (predecessor to NexEntry)

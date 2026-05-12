@@ -28,7 +28,6 @@
         padding: 0;
     }
 
-    /* ── Login Overlay ─────────────────────────────── */
     #login-overlay {
         position: fixed;
         inset: 0;
@@ -104,7 +103,6 @@
         margin-top: 8px;
     }
 
-    /* ── Header ────────────────────────────────────── */
     .header {
         background: var(--surface);
         border-bottom: 1px solid var(--border);
@@ -168,7 +166,6 @@
         background: var(--yellow);
     }
 
-    /* ── Nav Tabs ───────────────────────────────────── */
     .nav {
         background: var(--surface);
         border-bottom: 1px solid var(--border);
@@ -198,7 +195,6 @@
         border-bottom-color: var(--accent);
     }
 
-    /* ── Layout ─────────────────────────────────────── */
     .page {
         display: none;
         padding: 20px 24px;
@@ -220,7 +216,6 @@
         gap: 16px;
     }
 
-    /* ── Cards ──────────────────────────────────────── */
     .card {
         background: var(--surface);
         border: 1px solid var(--border);
@@ -240,7 +235,6 @@
         justify-content: space-between;
     }
 
-    /* ── Stat tiles ─────────────────────────────────── */
     .stat-val {
         font-size: 36px;
         font-weight: 700;
@@ -254,7 +248,6 @@
         margin-top: 6px;
     }
 
-    /* ── Tables ─────────────────────────────────────── */
     .tbl-wrap {
         overflow-x: auto;
     }
@@ -290,7 +283,6 @@
         background: var(--surface2);
     }
 
-    /* ── Badges ─────────────────────────────────────── */
     .badge {
         display: inline-block;
         padding: 2px 8px;
@@ -324,7 +316,6 @@
         color: var(--text3);
     }
 
-    /* ── Buttons ────────────────────────────────────── */
     .btn {
         padding: 8px 16px;
         border-radius: 8px;
@@ -365,7 +356,6 @@
         border: 1px solid var(--border);
     }
 
-    /* ── Forms ──────────────────────────────────────── */
     .form-row {
         display: flex;
         gap: 10px;
@@ -404,7 +394,6 @@
         border-color: var(--accent);
     }
 
-    /* ── Demo Mode Bar ──────────────────────────────── */
     .demo-bar {
         background: rgba(245, 158, 11, 0.1);
         border: 1px solid rgba(245, 158, 11, 0.3);
@@ -422,7 +411,6 @@
         font-weight: 600;
     }
 
-    /* ── Alert banner ───────────────────────────────── */
     .alert-banner {
         background: rgba(239, 68, 68, 0.1);
         border: 1px solid rgba(239, 68, 68, 0.3);
@@ -438,7 +426,6 @@
         display: block;
     }
 
-    /* ── Admin lock overlay ─────────────────────────── */
     #admin-lock {
         position: absolute;
         inset: 0;
@@ -473,14 +460,12 @@
         margin-bottom: 20px;
     }
 
-    /* ── Door status ────────────────────────────────── */
     .door-status {
         font-size: 28px;
         font-weight: 700;
         margin: 8px 0;
     }
 
-    /* ── Analytics bars ─────────────────────────────── */
     .bar-wrap {
         margin-bottom: 12px;
     }
@@ -511,7 +496,6 @@
         background: var(--yellow);
     }
 
-    /* ── Scrollable feed ────────────────────────────── */
     .feed-wrap {
         max-height: 320px;
         overflow-y: auto;
@@ -533,7 +517,6 @@
 
 <div id="rfid-root">
 
-    <!-- ── Login Overlay ──────────────────────────── -->
     <div id="login-overlay">
         <div class="login-box">
             <h1>🔒 NexEntry</h1>
@@ -545,7 +528,6 @@
         </div>
     </div>
 
-    <!-- ── Header ─────────────────────────────────── -->
     <div class="header">
         <div class="header-left">
             <h1>⚡ NexEntry</h1>
@@ -566,7 +548,6 @@
         </div>
     </div>
 
-    <!-- ── Nav ────────────────────────────────────── -->
     <div class="nav">
         <button class="nav-btn active" onclick="showPage('live')">Live Feed</button>
         <button class="nav-btn" onclick="showPage('attendance')">Attendance</button>
@@ -574,9 +555,6 @@
         <button class="nav-btn" onclick="showPage('admin')">Admin</button>
     </div>
 
-    <!-- ════════════════════════════════════════════ -->
-    <!-- PAGE: Live Feed                              -->
-    <!-- ════════════════════════════════════════════ -->
     <div class="page active" id="page-live">
 
         <div id="demo-bar-live" class="demo-bar" style="display:none">
@@ -655,9 +633,6 @@
         </div>
     </div>
 
-    <!-- ════════════════════════════════════════════ -->
-    <!-- PAGE: Attendance                             -->
-    <!-- ════════════════════════════════════════════ -->
     <div class="page" id="page-attendance">
         <div class="card">
             <div class="card-title">
@@ -689,9 +664,6 @@
         </div>
     </div>
 
-    <!-- ════════════════════════════════════════════ -->
-    <!-- PAGE: Analytics                              -->
-    <!-- ════════════════════════════════════════════ -->
     <div class="page" id="page-analytics">
         <div class="grid-2">
             <div class="card">
@@ -705,12 +677,8 @@
         </div>
     </div>
 
-    <!-- ════════════════════════════════════════════ -->
-    <!-- PAGE: Admin                                  -->
-    <!-- ════════════════════════════════════════════ -->
     <div class="page" id="page-admin" style="position:relative">
 
-        <!-- Admin lock overlay -->
         <div id="admin-lock">
             <div class="admin-lock-box">
                 <h3>🔐 Admin Access</h3>
@@ -727,10 +695,8 @@
             </div>
         </div>
 
-        <!-- Admin content (visible after unlock) -->
         <div class="grid-2" style="margin-bottom:16px">
 
-            <!-- Demo Mode -->
             <div class="card">
                 <div class="card-title">Demo Mode</div>
                 <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
@@ -748,7 +714,6 @@
                 </div>
             </div>
 
-            <!-- Danger Zone -->
             <div class="card">
                 <div class="card-title" style="color:var(--red)">Danger Zone</div>
                 <p style="font-size:12px;color:var(--text2);margin-bottom:14px">
@@ -764,11 +729,9 @@
             </div>
         </div>
 
-        <!-- Card Management -->
         <div class="card" style="position:relative">
             <div class="card-title">Card Management</div>
 
-            <!-- Enroll section -->
             <div style="background:var(--surface2);border-radius:8px;
                   padding:16px;margin-bottom:16px;border:1px solid var(--border)">
                 <div style="font-size:12px;font-weight:600;
@@ -804,7 +767,6 @@
                 <div id="enroll-status" style="font-size:12px;color:var(--text2);margin-top:8px"></div>
             </div>
 
-            <!-- Registry table -->
             <div class="tbl-wrap">
                 <table>
                     <thead>
@@ -822,13 +784,10 @@
         </div>
     </div>
 
-</div><!-- end rfid-root -->
+</div>
 
 <script>
 console.log('Dashboard script loaded');
-// ════════════════════════════════════════════════
-//  Config
-// ════════════════════════════════════════════════
 if (window._rfidDashboardActive) window._rfidDashboardActive();
 var _killed = false;
 window._rfidDashboardActive = function() { _killed = true; };
@@ -843,9 +802,6 @@ var _statsFetching = false;
 var demoBaseTime        = 0;
 var adminUnlocked       = false;
 
-// ════════════════════════════════════════════════
-//  Login
-// ════════════════════════════════════════════════
 function doLogin() {
   var u = document.getElementById('login-user').value.trim();
   var p = document.getElementById('login-pass').value.trim();
@@ -861,9 +817,6 @@ document.getElementById('login-pass').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') doLogin();
 });
 
-// ════════════════════════════════════════════════
-//  Admin unlock
-// ════════════════════════════════════════════════
 function unlockAdmin() {
   var p = document.getElementById('admin-pass-input').value;
   if (p === ADMIN_PASS) {
@@ -875,9 +828,6 @@ function unlockAdmin() {
   }
 }
 
-// ════════════════════════════════════════════════
-//  Navigation
-// ════════════════════════════════════════════════
 function showPage(name) {
   document.querySelectorAll('.page').forEach(function(p) {
     p.classList.remove('active');
@@ -893,16 +843,11 @@ function showPage(name) {
   if (name === 'admin' && adminUnlocked) loadCards();
 }
 
-// ════════════════════════════════════════════════
-//  Init — called after login
-// ════════════════════════════════════════════════
 function init() {
-    // Clear any intervals from previous instances
     var highestId = setInterval(function(){}, 9999);
     for (var i = 0; i < highestId; i++) {
         clearInterval(i);
     }
-    // Initialize door status to locked on page load
     updateDoorStatus('LOCKED');
 
     debouncedStats();
@@ -924,14 +869,10 @@ function init() {
     }, 1000);
 }
 
-// ════════════════════════════════════════════════
-//  Node-RED message handler
-// ════════════════════════════════════════════════
 scope.$watch('msg', function(msg) {
   if (!msg || !msg.payload) return;
   var p = msg.payload;
 
-  // Live feed update (array from update-feed node)
   if (p.alertList) {
     renderAlerts(p.alertList);
     return;
@@ -942,24 +883,16 @@ scope.$watch('msg', function(msg) {
     return;
   }
 
-  // Alert list update
-  if (p.type && (p.type === 'UNKNOWN_CARD' || p.type === 'DOOR_HELD_OPEN')) {
-    // alerts array comes through separately — handled by alert node
-  }
-
-  // Alert array
   if (Array.isArray(p) && p[0] && p[0].type) {
     renderAlerts(p);
     return;
   }
 
-  // Door event
   if (p.event) {
     updateDoorStatus(p.event);
     return;
   }
 
-  // ESP32 status heartbeat
   if (p.uptime !== undefined) {
     if (!demoMode) {
       var now = new Date();
@@ -976,7 +909,6 @@ scope.$watch('msg', function(msg) {
     return;
   }
 
-  // Enroll scanned
   if (p.uid && Object.keys(p).length === 1) {
     document.getElementById('enroll-uid').value = p.uid;
     document.getElementById('enroll-status').textContent =
@@ -984,15 +916,11 @@ scope.$watch('msg', function(msg) {
     return;
   }
 
-  // Tap event (single)
   if (p.action) {
     showTapAlert(p);
   }
 });
 
-// ════════════════════════════════════════════════
-//  Feed rendering
-// ════════════════════════════════════════════════
 function renderFeed(feed) {
   var tbody = document.getElementById('feed-body');
   tbody.innerHTML = '';
@@ -1034,7 +962,6 @@ function renderAlerts(alerts) {
     tbody.appendChild(tr);
   });
 
-  // Show banner for latest alert
   if (alerts.length > 0) {
     var banner = document.getElementById('alert-banner');
     banner.textContent = '⚠ Alert: ' + alerts[0].type + ' — ' + alerts[0].uid;
@@ -1052,9 +979,6 @@ function showTapAlert(p) {
   }
 }
 
-// ════════════════════════════════════════════════
-//  Door status
-// ════════════════════════════════════════════════
 function updateDoorStatus(event) {
   var dot   = document.getElementById('door-dot');
   var label = document.getElementById('door-label');
@@ -1078,9 +1002,6 @@ function updateDoorStatus(event) {
   }
 }
 
-// ════════════════════════════════════════════════
-//  Attendance stats (for stat tiles)
-// ════════════════════════════════════════════════
 function loadAttendanceStats() {
     if (_statsFetching) return;
     _statsFetching = true;
@@ -1130,9 +1051,6 @@ function debouncedStats() {
     _statsDebounceTimer = setTimeout(loadAttendanceStats, 300);
 }
 
-// ════════════════════════════════════════════════
-//  Attendance table
-// ════════════════════════════════════════════════
 function loadAttendance() {
   fetch(API + '/attendance')
     .then(function(r) { return r.json(); })
@@ -1141,7 +1059,6 @@ function loadAttendance() {
       var tbody = document.getElementById('attendance-body');
       tbody.innerHTML = '';
 
-      // Group CHECK_IN / CHECK_OUT pairs by uid+date
       var sessions = {};
       rows = rows.filter(function(r) { return r.access === 'GRANTED'; });
       rows.forEach(function(r) {
@@ -1153,8 +1070,7 @@ function loadAttendance() {
         }
         var key = r.uid + '_' + dateStr;
         if (!sessions[key]) {
-          sessions[key] = { name: r.name, date: dateStr,
-                            checkIn: null, checkOut: null, isLate: false };
+          sessions[key] = { name: r.name, date: dateStr, checkIn: null, checkOut: null, isLate: false };
         }
         if (r.action === 'CHECK_IN') {
           sessions[key].checkIn = r.timestamp;
@@ -1212,9 +1128,6 @@ function loadAttendance() {
     });
 }
 
-// ════════════════════════════════════════════════
-//  Analytics
-// ════════════════════════════════════════════════
 function loadAnalytics() {
   fetch(API + '/weekly')
     .then(function(r) { return r.json(); })
@@ -1254,19 +1167,13 @@ function loadAnalytics() {
     });
 }
 
-// ════════════════════════════════════════════════
-//  CSV Export
-// ════════════════════════════════════════════════
 function exportCSV() {
   window.location.href = API + '/export-csv';
 }
 
-// ════════════════════════════════════════════════
-//  MQTT command helper
-// ════════════════════════════════════════════════
 function sendCmd(topic, payload) {
 console.log('sendCmd called:', topic, JSON.stringify(payload));
-return fetch('http://192.168.100.13:1880/cmd', {
+return fetch('http://ip:1880/cmd', {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify({ topic: topic, payload: payload })
@@ -1280,9 +1187,6 @@ console.error('CMD failed:', err);
 });
 }
 
-// ════════════════════════════════════════════════
-//  Door commands
-// ════════════════════════════════════════════════
 function remoteDoor(cmd) {
   sendCmd('access/cmd/door', { cmd: cmd });
 }
@@ -1302,10 +1206,6 @@ document.getElementById('btn-lock').addEventListener('click', function() {
     setTimeout(function() { _doorCmdLock = false; }, 500);
 });
 
-// ════════════════════════════════════════════════
-//  Demo mode
-// ════════════════════════════════════════════════
-
 function updateDemoTimeDisplay() {
     if (!demoMode) return;
     var demoNow = new Date(Date.now() + demoOffsetSeconds * 1000);
@@ -1324,7 +1224,6 @@ function toggleDemo() {
     });
     updateDemoUI();
     if (!demoMode) {
-      // Immediately restore real time
       var now = new Date();
       document.getElementById('esp-time').textContent = 
         now.toLocaleTimeString('en-GB');
@@ -1360,9 +1259,6 @@ function updateDemoUI() {
   }
 }
 
-// ════════════════════════════════════════════════
-//  Clear history
-// ════════════════════════════════════════════════
 function clearHistory() {
   if (!confirm('Clear ALL attendance history? This cannot be undone.')) return;
   fetch(API + '/clear-history', { method: 'POST' })
@@ -1383,9 +1279,6 @@ function clearDemoRecords() {
         });
 }
 
-// ════════════════════════════════════════════════
-//  Card Management
-// ════════════════════════════════════════════════
 function loadCards() {
   fetch(API + '/cards')
     .then(function(r) { return r.json(); })
@@ -1455,10 +1348,8 @@ function saveEnrolled() {
     whitelisted: access, tempExpiry: tempExpiry
   };
 
-  // Send to ESP32
   sendCmd('access/cmd/enroll/save', payload);
 
-  // Mirror to SQLite
   fetch(API + '/cmd', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1468,9 +1359,6 @@ function saveEnrolled() {
     })
   });
 
-  // Also save to cards table directly via a small workaround:
-  // We'll use the /cmd endpoint but the cards table is updated
-  // by a separate flow node listening on enroll/save topic
   document.getElementById('enroll-status').textContent =
     '✓ Saved: ' + name + ' (' + uid + ')';
 
