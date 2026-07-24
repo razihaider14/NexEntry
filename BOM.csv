@@ -1,0 +1,11 @@
+Item, Component, Quantity, Source
+1, ESP32 Dev Board, 1, https://electrobes.com/product/esp32-wroom-32-38-pins-wifibluetooth-mcu-module
+2, RC522 RFID module, 1, https://electrobes.com/product/mifare-13-56mhz-rc522-rfid-card-reader-module
+3, 13.56 MHz RFID cards, 11, https://electrobes.com/product/mifare-13-56mhz-classic-blank-rfid-card
+4, 16x2 LCD, 1, https://electrobes.com/product/16x2-lcd-display-1602-character-display-green
+5, I2C module for LCD, 1, https://electrobes.com/product/iic-i2c-16-pin-serial-interface-lcd-display-adapter-module
+6, SG90 Servo Motor, 1, https://electrobes.com/product/towerpro-sg-90-servo-motor-180-degree-rotation
+7, Green LED, 1, https://electrobes.com/product/5mm-green-led-10pcs
+8, Red LED, 1, https://electrobes.com/product/5mm-red-led
+9, Active Buzzer, 1, https://electrobes.com/product/5v-active-piezo-Buzzer
+10, Raspberry Pi, Optional, https://electrobes.com/product/raspberry-pi-4-model-b-4gb-computer-development-board
