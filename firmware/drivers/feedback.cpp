@@ -1,12 +1,12 @@
 #include "feedback.h"
-#include "config.h"
+#include "../config.h"
 
 namespace Feedback {
 
     static bool     _doorHeldActive    = false;
     static uint32_t _doorHeldLastTick  = 0;
     static bool     _doorHeldLedState  = false;
-    #define DOOR_HELD_TICK_MS 400       
+    #define DOOR_HELD_TICK_MS 400
 
     static void _beep(uint32_t durationMs) {
         digitalWrite(PIN_BUZZER, HIGH);
@@ -18,12 +18,6 @@ namespace Feedback {
         digitalWrite(PIN_LED_GREEN, HIGH);
         delay(durationMs);
         digitalWrite(PIN_LED_GREEN, LOW);
-    }
-
-    static void _red(uint32_t durationMs) {
-        digitalWrite(PIN_LED_RED, HIGH);
-        delay(durationMs);
-        digitalWrite(PIN_LED_RED, LOW);
     }
 
     static void _allOff() {
@@ -59,10 +53,7 @@ namespace Feedback {
     void unknown() {
         _allOff();
         digitalWrite(PIN_LED_RED, HIGH);
-        for (uint8_t i = 0; i < 3; i++) {
-            _beep(100);
-            delay(150);
-        }
+        for (uint8_t i = 0; i < 3; i++) { _beep(100); delay(150); }
         digitalWrite(PIN_LED_RED, LOW);
     }
 
@@ -82,16 +73,10 @@ namespace Feedback {
 
     void enrollSaved() {
         _allOff();
-        for (uint8_t i = 0; i < 2; i++) {
-            _green(100);
-            delay(100);
-        }
+        for (uint8_t i = 0; i < 2; i++) { _green(100); delay(100); }
     }
 
-    void demoMode() {
-        _allOff();
-        _green(200);
-    }
+    void demoMode() { _allOff(); _green(200); }
 
     void doorHeldOn() {
         _doorHeldActive   = true;
@@ -108,19 +93,12 @@ namespace Feedback {
 
     void tick() {
         if (!_doorHeldActive) return;
-
         uint32_t now = millis();
         if (now - _doorHeldLastTick < DOOR_HELD_TICK_MS) return;
         _doorHeldLastTick = now;
-
         _doorHeldLedState = !_doorHeldLedState;
         digitalWrite(PIN_LED_GREEN, _doorHeldLedState ? HIGH : LOW);
         digitalWrite(PIN_LED_RED,  _doorHeldLedState ? LOW  : HIGH);
-
-        if (_doorHeldLedState) {
-            digitalWrite(PIN_BUZZER, HIGH);
-            delay(50);
-            digitalWrite(PIN_BUZZER, LOW);
-        }
+        if (_doorHeldLedState) { digitalWrite(PIN_BUZZER, HIGH); delay(50); digitalWrite(PIN_BUZZER, LOW); }
     }
 }

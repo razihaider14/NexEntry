@@ -1,20 +1,16 @@
 #include "door.h"
-#include "config.h"
+#include "../config.h"
 #include <ESP32Servo.h>
 
 namespace Door {
 
     static Servo    _servo;
     static bool     _unlocked         = false;
-
     static bool     _autoRelockActive = false;
-    static bool _autoRelockFired = false;
+    static bool     _autoRelockFired  = false;
     static uint32_t _unlockTime       = 0;
     static uint32_t _unlockDuration   = 0;
-
     static bool     _heldAlertSent    = false;
-
-    static void _setLocked(bool locked);
 
     static void _setLocked(bool locked) {
         if (locked) {
@@ -28,10 +24,9 @@ namespace Door {
         }
     }
 
-
     void init() {
         _servo.attach(PIN_DOOR);
-        _setLocked(true);   
+        _setLocked(true);
         Serial.println("[DOOR] Init OK");
     }
 
@@ -40,7 +35,7 @@ namespace Door {
         _autoRelockActive = true;
         _unlockTime       = millis();
         _unlockDuration   = durationMs;
-        _heldAlertSent    = false;   
+        _heldAlertSent    = false;
         Serial.printf("[DOOR] Unlock for %dms\n", durationMs);
     }
 
@@ -51,9 +46,7 @@ namespace Door {
         Serial.println("[DOOR] Manually locked");
     }
 
-    bool isUnlocked() {
-        return _unlocked;
-    }
+    bool isUnlocked() { return _unlocked; }
 
     void tick() {
         uint32_t now = millis();
@@ -75,15 +68,10 @@ namespace Door {
         }
     }
 
-    bool isHeldOpen() {
-        return _heldAlertSent;
-    }
+    bool isHeldOpen() { return _heldAlertSent; }
 
     bool autoRelockFired() {
-        if (_autoRelockFired) {
-            _autoRelockFired = false;
-            return true;
-        }
+        if (_autoRelockFired) { _autoRelockFired = false; return true; }
         return false;
     }
 }

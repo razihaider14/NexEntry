@@ -1,155 +1,128 @@
+// =============================================================================
+// NexEntry v2 — FreeRTOS firmware
+//
+// Externally identical to v1 (same RFID/attendance/door/dashboard behaviour,
+// same MQTT topics/payloads). Internally: FreeRTOS task architecture,
+// Secure HTTP OTA (backend-hosted firmware.bin over HTTPS — no ArduinoOTA,
+// no browser-based WebOTA), NVS-backed ConfigManager + WiFiManager
+// provisioning, and authenticated administrative MQTT commands.
+//
+// See /docs in the project root for the architecture explanation, task
+// diagram, security audit, and migration notes.
+// =============================================================================
 #include <Arduino.h>
-#include <WiFi.h>
-#include <ArduinoOTA.h>
+#include <esp_task_wdt.h>
+#include <esp_ota_ops.h>
 
 #include "config.h"
-#include "time_manager.h"
-#include "feedback.h"
-#include "display.h"
-#include "door.h"
-#include "rfid_handler.h"
-#include "presence.h"
-#include "mqtt_handler.h"
+#include "config/config_manager.h"
 
-static uint32_t _lastStatusPublish  = 0;
-static uint32_t _lastTimeUpdate     = 0;
-static uint32_t _lastCardTime       = 0;  
-static String   _lastCardUID        = "";
+#include "tasks/tasks_common.h"
+#include "tasks/task_provisioning.h"
+#include "tasks/task_wifi.h"
+#include "tasks/task_mqtt.h"
+#include "tasks/task_status.h"
+#include "tasks/task_rfid.h"
+#include "tasks/task_door.h"
+#include "tasks/task_display.h"
+#include "tasks/task_feedback.h"
 
-static void connectWiFi() {
-    Display::connecting();
-    Serial.printf("[WIFI] Connecting to %s", WIFI_SSID);
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+// ── Globals defined here, declared `extern` in tasks_common.h ─────────────
+EventGroupHandle_t gSystemEvents;
+QueueHandle_t       qDisplay;
+QueueHandle_t       qFeedback;
+QueueHandle_t       qDoorCmd;
+QueueHandle_t       qMqttOut;
 
-    while (WiFi.status() != WL_CONNECTED) {
-        Serial.print(".");
-        delay(500);
+// ── Triple-reset detection (Req. #6.4) ──────────────────────────────────────
+// RTC (slow) memory survives a software/watchdog reset but is undefined on a
+// true power-on, hence the magic-number guard. A boot is "quick" if it
+// happens again before `_clearBootCountTimer` fires.
+RTC_NOINIT_ATTR uint32_t _rtcMagic;
+RTC_NOINIT_ATTR uint32_t _rtcBootCount;
+#define RTC_MAGIC_VALUE 0xACCE55EEu
+
+static bool _checkTripleReset() {
+    if (_rtcMagic != RTC_MAGIC_VALUE) {
+        _rtcMagic = RTC_MAGIC_VALUE;
+        _rtcBootCount = 0;
     }
+    _rtcBootCount++;
+    Serial.printf("[BOOT] Quick-reset counter: %u\n", _rtcBootCount);
 
-    Serial.printf(" OK — IP: %s\n", WiFi.localIP().toString().c_str());
+    bool triggered = _rtcBootCount >= TRIPLE_RESET_COUNT;
+    if (triggered) _rtcBootCount = 0;
+    return triggered;
 }
 
-static void initOTA() {
-    ArduinoOTA.setHostname("nexentry");
-    ArduinoOTA.onStart([]() {
-        Serial.println("[OTA] Start");
-        Display::connecting();
-    });
-    ArduinoOTA.onEnd([]() {
-        Serial.println("[OTA] Done");
-    });
-    ArduinoOTA.onError([](ota_error_t error) {
-        Serial.printf("[OTA] Error [%u]\n", error);
-    });
-    ArduinoOTA.begin();
-    Serial.println("[OTA] Ready");
-}
-
-static void onMQTTConnect() {
-    MQTT::publishStatus();
-}
-
-static void handleTap(const String& uid, int cardIndex) {
-    // ── Enrollment mode ──────────────────────────────────────
-    if (RFID::isEnrollMode()) {
-        Display::enrollScanned(uid.c_str());
-        Feedback::enrollReady();
-        MQTT::publishEnrollScanned(uid.c_str());
-        return;
-    }
-
-    bool granted = Presence::processTap(cardIndex, uid);
-    AccessResult result = Presence::getLastResult();
-
-    if (granted) {
-        if (strcmp(result.action, "CHECK_IN") == 0) {
-            Display::welcome(result.name);
-        } else {
-            Display::goodbye(result.name);
-        }
-        Feedback::granted();
-        Door::unlock(DOOR_UNLOCK_MS);
-        MQTT::publishTap(result);
-        MQTT::publishDoorEvent("UNLOCKED");
-
-    } else {
-        if (strcmp(result.access, "UNKNOWN") == 0) {
-            Display::unknown();
-            Feedback::unknown();
-            MQTT::publishAlert("UNKNOWN_CARD", uid.c_str());
-        } else if (strcmp(result.access, "DENIED_BLACKLIST") == 0) {
-            Display::denied("Blacklisted");
-            Feedback::denied();
-            MQTT::publishTap(result);
-        } else if (strcmp(result.access, "DENIED_EXPIRED") == 0) {
-            Display::denied("Access Expired");
-            Feedback::denied();
-            MQTT::publishTap(result);
-        }
-    }
-    delay(500);
-    Display::idle();
+static void _clearBootCountLater(void*) {
+    vTaskDelay(pdMS_TO_TICKS(TRIPLE_RESET_WINDOW_MS));
+    _rtcBootCount = 0; // this boot was stable — no longer part of a reset burst
+    vTaskDelete(NULL);
 }
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\n=== NexEntry — Booting ===");
+    delay(200);
+    Serial.println("\n=== NexEntry v2 — Booting ===");
+    Serial.printf("Firmware version: %s\n", FIRMWARE_VERSION);
 
-    Display::init();
-    Feedback::init();
-    Door::init();
+    // Rollback safety hook (HTTP OTA "roll back safely if possible" — see
+    // docs/09-HTTP-OTA.md). This confirms the currently-running image is
+    // good; if CONFIG_APP_ROLLBACK_ENABLE isn't set in your sdkconfig (the
+    // Arduino IDE default), this is a harmless no-op — true automatic
+    // rollback-on-crash requires that ESP-IDF option, which isn't reachable
+    // from stock Arduino IDE. See docs/09-HTTP-OTA.md for the full caveat.
+    esp_ota_mark_app_valid_cancel_rollback();
 
-    connectWiFi();
-    initOTA();
-    TimeManager::begin();
+    // Watchdog (Req. #8) — covers every task via esp_task_wdt_add() in each.
+    // NOTE: esp_task_wdt_init()'s signature differs between arduino-esp32
+    // core 2.x (esp_task_wdt_init(seconds, panic)) and 3.x
+    // (esp_task_wdt_init(&esp_task_wdt_config_t{...})). The call below is
+    // the 2.x form — see MIGRATION.md for the 3.x snippet if your board
+    // package is on core 3.x.
+    esp_task_wdt_init(15, true); // 15s timeout, panic (reboot) on trip
 
-    RFID::init();
-    Presence::init();
-    MQTT::init(onMQTTConnect);
+    pinMode(PIN_RESET_BUTTON, INPUT_PULLUP);
+    bool buttonHeld  = (digitalRead(PIN_RESET_BUTTON) == LOW);
+    bool tripleReset = _checkTripleReset();
+    xTaskCreate(_clearBootCountLater, "boot_stable", 1536, nullptr, 1, nullptr);
 
-    Display::idle();
-    Serial.println("=== Boot complete ===\n");
+    gSystemEvents = xEventGroupCreate();
+    qDisplay  = xQueueCreate(8,  sizeof(DisplayMsg));
+    qFeedback = xQueueCreate(8,  sizeof(FeedbackMsg));
+    qDoorCmd  = xQueueCreate(4,  sizeof(DoorCmdMsg));
+    qMqttOut  = xQueueCreate(16, sizeof(MqttPublishMsg));
+
+    ConfigManager::load();
+
+    bool needProvisioning = !ConfigManager::isConfigured() || buttonHeld || tripleReset;
+    if (needProvisioning) {
+        Serial.printf("[BOOT] Entering provisioning — configured=%d button=%d tripleReset=%d\n",
+                      ConfigManager::isConfigured(), buttonHeld, tripleReset);
+        // Blocking by design: nothing else can usefully run without config,
+        // and this call reboots the device on success (Req. #5/#6).
+        blockingRunProvisioningPortal();
+        // If we reach here, the portal timed out without new config on a
+        // device that WAS already configured (button/triple-reset case) —
+        // fall through and boot normally with the existing config.
+    }
+
+    // ── Core 0: latency-sensitive, user-facing tasks ───────────────────────
+    taskRfidStart();
+    taskDoorStart();
+    taskDisplayStart();
+    taskFeedbackStart();
+
+    // ── Core 1: networking tasks ────────────────────────────────────────────
+    taskWifiStart();
+    taskMqttStart();
+    taskStatusStart();
+
+    Serial.println("=== Boot complete — tasks running ===\n");
 }
 
 void loop() {
-    ArduinoOTA.handle();
-    MQTT::loop();
-    Door::tick();
-    if (Door::autoRelockFired()) {
-        MQTT::publishDoorEvent("LOCKED");
-    }
-    Feedback::tick();
-
-    uint32_t now = millis();
-
-    if (RFID::cardPresent()) {
-        String uid = RFID::readUID();
-
-        bool sameCard    = (uid == _lastCardUID);
-        bool tooSoon     = (now - _lastCardTime) < DEBOUNCE_MS;
-
-        if (!(sameCard && tooSoon)) {
-            _lastCardUID  = uid;
-            _lastCardTime = now;
-            int cardIndex = RFID::lookupCard(uid);
-            handleTap(uid, cardIndex);
-        }
-    }
-
-    if (Door::isHeldOpen()) {
-        Feedback::doorHeldOn();
-        MQTT::publishAlert("DOOR_HELD_OPEN", "");
-        MQTT::publishDoorEvent("HELD_OPEN");
-    }
-
-    if (now - _lastTimeUpdate >= 1000) {
-        _lastTimeUpdate = now;
-        Display::updateTime(TimeManager::formatted());
-    }
-
-    if (now - _lastStatusPublish >= STATUS_INTERVAL_MS) {
-        _lastStatusPublish = now;
-        MQTT::publishStatus();
-    }
+    // All work happens in FreeRTOS tasks; nothing to do here.
+    vTaskDelay(pdMS_TO_TICKS(1000));
 }

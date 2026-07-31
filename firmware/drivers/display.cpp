@@ -1,22 +1,19 @@
 #include "display.h"
-#include "config.h"
+#include "../config.h"
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
 namespace Display {
 
     static LiquidCrystal_I2C _lcd(LCD_ADDRESS, LCD_COLS, LCD_ROWS);
-    static bool _isIdle = false;   
+    static bool _isIdle = false;
 
     static void _print(const char* line1, const char* line2) {
         _isIdle = false;
-
         char buf1[LCD_COLS + 1];
         char buf2[LCD_COLS + 1];
-
         snprintf(buf1, sizeof(buf1), "%-16s", line1);
         snprintf(buf2, sizeof(buf2), "%-16s", line2);
-
         _lcd.setCursor(0, 0);
         _lcd.print(buf1);
         _lcd.setCursor(0, 1);
@@ -45,13 +42,11 @@ namespace Display {
         char buf2[LCD_COLS + 1];
         snprintf(buf1, sizeof(buf1), "%-16s", "Scan Card...");
         snprintf(buf2, sizeof(buf2), "%-16s", "");
-
         _lcd.setCursor(0, 0);
         _lcd.print(buf1);
         _lcd.setCursor(0, 1);
         _lcd.print(buf2);
-
-        _isIdle = true;   
+        _isIdle = true;
     }
 
     void welcome(const char* name) {
@@ -66,17 +61,9 @@ namespace Display {
         _print("Goodbye!", safeName);
     }
 
-    void denied(const char* reason) {
-        _print("Access Denied", reason);
-    }
-
-    void unknown() {
-        _print("Unknown Card", "Not Registered");
-    }
-
-    void enrollMode() {
-        _print("Enroll Mode", "Scan a card...");
-    }
+    void denied(const char* reason) { _print("Access Denied", reason); }
+    void unknown() { _print("Unknown Card", "Not Registered"); }
+    void enrollMode() { _print("Enroll Mode", "Scan a card..."); }
 
     void enrollScanned(const char* uid) {
         char safeUID[LCD_COLS + 1];
@@ -90,27 +77,17 @@ namespace Display {
         _print("Card Saved!", safeName);
     }
 
-    void demoModeOn() {
-        _print("Demo Mode ON", "Time overridden");
-    }
+    void demoModeOn()  { _print("Demo Mode ON", "Time overridden"); }
+    void demoModeOff() { _print("Demo Mode OFF", "Real time active"); }
+    void connecting()  { _print("Connecting...", "Please wait"); }
+    void mqttReconnecting() { _print("MQTT...", "Reconnecting"); }
+    void provisioning() { _print("Setup Required", "Connect to AP"); }
+    void otaActive()    { _print("Update Mode", "Do not power off"); }
 
-    void demoModeOff() {
-        _print("Demo Mode OFF", "Real time active");
-    }
-
-    void connecting() {
-        _print("Connecting...", "Please wait");
-    }
-
-    void mqttReconnecting() {
-        _print("MQTT...", "Reconnecting");
-    }
-
-    void updateTime(const String& timeStr) {
+    void updateTime(const char* timeStr) {
         if (!_isIdle) return;
-
         char buf[LCD_COLS + 1];
-        snprintf(buf, sizeof(buf), "%-16s", timeStr.c_str());
+        snprintf(buf, sizeof(buf), "%-16s", timeStr);
         _lcd.setCursor(0, 1);
         _lcd.print(buf);
     }
